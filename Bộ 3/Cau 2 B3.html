@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minh họa a, b cùng ⊥ (P)</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f0f0;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100vh;
+        }
+        .controls {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            z-index: 10;
+        }
+        .control-button {
+            padding: 12px 25px;
+            font-size: 16px;
+            font-weight: 600;
+            color: #fff;
+            background: linear-gradient(145deg, #007bff, #0056b3);
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
+            transition: all 0.3s ease;
+            outline: none;
+            transform: translateY(0);
+        }
+        .control-button:hover {
+            background: linear-gradient(145deg, #0056b3, #003a80);
+            box-shadow: 0 6px 20px rgba(0, 123, 255, 0.4);
+            transform: translateY(-2px);
+        }
+        .control-button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 5px rgba(0, 123, 255, 0.2);
+        }
+
+        .label {
+            position: absolute;
+            background-color: transparent;
+            padding: 0;
+            font-size: 16px;
+            color: #1a1a1a;
+            font-weight: 700;
+            text-shadow: 0.5px 0.5px 2px rgba(255, 255, 255, 0.9);
+            pointer-events: none;
+            white-space: nowrap;
+            transform: translate(-50%, -50%);
+        }
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5em;
+            color: #555;
+            z-index: 1000;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+    <div class="loading-overlay" id="loadingOverlay">Đang tải mô hình 3D...</div>
+    
+    <script>
+        let scene, camera, renderer, controls;
+        let labels = {};
+        let initialCameraConfig = {};
+
+        // --- Materials ---
+        const highlightLineMaterial = new THREE.LineBasicMaterial({
+            color: 0xD32F2F, // Red
+            linewidth: 3,
+        });
+
+        // --- Helper Functions ---
+        function addLabel(position, text) {
+            const element = document.createElement('div');
+            element.className = 'label';
+            element.textContent = text;
+            document.body.appendChild(element);
+            labels[text] = { element: element, position: position };
+        }
+
+        function addEdge(v1, v2, material) {
+            const geometry = new THREE.BufferGeometry().setFromPoints([v1, v2]);
+            const line = new THREE.Line(geometry, material);
+            scene.add(line);
+        }
+
+        function fitCameraToScene() {
+            const boundingBox = new THREE.Box3().setFromObject(scene);
+            const center = new THREE.Vector3();
+            boundingBox.getCenter(center);
+            const size = new THREE.Vector3();
+            boundingBox.getSize(size);
+
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const fov = camera.fov * (Math.PI / 180);
+            let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
+            cameraZ *= 2.0;
+
+            initialCameraConfig.position = new THREE.Vector3(center.x + cameraZ, center.y + cameraZ * 0.7, center.z + cameraZ);
+            initialCameraConfig.target = center.clone();
+
+            camera.position.copy(initialCameraConfig.position);
+            controls.target.copy(initialCameraConfig.target);
+            controls.update();
+        }
+
+        function resetCamera() {
+            if (initialCameraConfig.position && initialCameraConfig.target) {
+                camera.position.copy(initialCameraConfig.position);
+                controls.target.copy(initialCameraConfig.target);
+                controls.update();
+            }
+        }
+
+        function updateLabels() {
+            for (const key in labels) {
+                const label = labels[key];
+                const vector = label.position.clone().project(camera);
+                const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+                const y = (-vector.y * 0.5 + 0.5) * window.innerHeight;
+                label.element.style.left = `${x}px`;
+                label.element.style.top = `${y}px`;
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            updateLabels();
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            updateLabels();
+        });
+
+        window.onload = function() {
+            // --- Basic Scene Setup ---
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xFFFFFF);
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 5000);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+
+            // --- Lighting ---
+            scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+            dirLight.position.set(5, 10, 7);
+            scene.add(dirLight);
+
+            // --- GEOMETRY: Minimal version ---
+            
+            // 1. Create the plane (P) using a GridHelper for clarity
+            const gridSize = 12;
+            const gridDivisions = 12;
+            const gridHelper = new THREE.GridHelper(gridSize, gridDivisions);
+            scene.add(gridHelper);
+            addLabel(new THREE.Vector3(gridSize/2 + 1, 0, 0), "(P)");
+
+            // 2. Define and draw line 'a'
+            const a1 = new THREE.Vector3(-3, -5, 2);
+            const a2 = new THREE.Vector3(-3, 5, 2);
+            addEdge(a1, a2, highlightLineMaterial);
+            addLabel(new THREE.Vector3(-3, 5.5, 2), "a");
+            
+            // 3. Define and draw line 'b'
+            const b1 = new THREE.Vector3(3, -5, -1);
+            const b2 = new THREE.Vector3(3, 5, -1);
+            addEdge(b1, b2, highlightLineMaterial);
+            addLabel(new THREE.Vector3(3, 5.5, -1), "b");
+
+            // --- UI and Controls ---
+            const controlsDiv = document.createElement('div');
+            controlsDiv.className = 'controls';
+            document.body.appendChild(controlsDiv);
+
+            const resetButton = document.createElement('button');
+            resetButton.className = 'control-button';
+            resetButton.textContent = 'Đặt lại';
+            resetButton.onclick = resetCamera;
+            controlsDiv.appendChild(resetButton);
+
+
+
+            // --- Finalize ---
+            fitCameraToScene();
+            document.getElementById('loadingOverlay').style.display = 'none';
+            animate();
+        };
+    </script>
+</body>
+</html>

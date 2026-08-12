@@ -1,0 +1,1284 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mê cung | Truy tìm kho báu</title>
+  <style>
+    /* --- CSS Chung --- */
+    :root {
+      --cell-size: 60px; /* Giá trị mặc định, sẽ được ghi đè bởi JS */
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: url("https://i.postimg.cc/WbRgzD61/6114c8cc-c4ce-4789-a444-d8b4ac7627fc.png") no-repeat center center fixed;
+      background-size: cover;
+      overflow: hidden;
+    }
+
+    .screen {
+      display: none;
+      height: 100vh;
+      width: 100vw;
+      position: relative;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .screen.active {
+      display: flex;
+    }
+    
+    /* --- Các màn hình lựa chọn & Thông báo --- */
+    #start-screen, #maze-difficulty-screen {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .selection-container {
+      text-align: center;
+      max-width: 900px;
+      width: 100%;
+      padding: 40px;
+      position: relative;
+    }
+
+    .selection-title {
+      font-size: 48px;
+      font-weight: bold;
+      margin-bottom: 20px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    }
+
+    .game-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      flex-wrap: wrap;
+    }
+
+    .game-btn {
+      background: linear-gradient(135deg, #ffd89b, #19547b);
+      color: white;
+      border: none;
+      border-radius: 20px;
+      padding: 30px 40px;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+      min-width: 250px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .game-btn:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 15px 30px rgba(0,0,0,0.4);
+    }
+    
+    .instructions-btn {
+        background: linear-gradient(135deg, #17a2b8, #28a745);
+        margin-bottom: 25px;
+        padding: 15px 30px;
+        font-size: 22px;
+        min-width: auto;
+    }
+
+    .corner-button {
+        position: absolute;
+        width: 50px;
+        height: 50px;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        user-select: none;
+        border: none;
+        z-index: 1001;
+        text-decoration: none;
+    }
+    .corner-button:hover {
+        transform: scale(1.1);
+    }
+    .home-button {
+        /* === THAY ĐỔI VỊ TRÍ TẠI ĐÂY === */
+        top: 15px;
+        right: 15px; /* Đã thay đổi */
+        background: linear-gradient(135deg, #f7971e, #ffd200);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2), 0 0 8px rgba(255, 210, 0, 0.7);
+    }
+    .home-button:hover {
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3), 0 0 15px rgba(255, 210, 0, 1);
+    }
+    
+    /* --- Màn hình chơi game Mê cung --- */
+    #maze-game-screen {
+      background: radial-gradient(ellipse at center, #282c34 0%, #1c1f26 100%);
+      justify-content: center;
+      color: #fff;
+      padding-top: 50px; 
+    }
+    
+    #in-game-instructions-btn, #in-game-return-btn {
+        position: absolute;
+        top: 15px;
+        z-index: 200;
+        border: none;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        font-size: 24px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        color: white;
+    }
+    #in-game-instructions-btn:hover, #in-game-return-btn:hover {
+        transform: scale(1.1);
+    }
+    #in-game-instructions-btn {
+        right: 20px;
+        background: linear-gradient(135deg, #17a2b8, #28a745);
+    }
+    #in-game-return-btn {
+        right: 85px; 
+        background: linear-gradient(135deg, #38ef7d, #11998e);
+    }
+
+
+    #container {
+      display: flex;
+      gap: 40px;
+      align-items: flex-start;
+    }
+
+    #game-board {
+      display: grid;
+      gap: 2px;
+      padding: 10px;
+      background: #444;
+      border-radius: 10px;
+      box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+      position: relative;
+    }
+
+    .cell {
+      width: var(--cell-size);
+      height: var(--cell-size);
+      font-weight: bold;
+      font-size: calc(var(--cell-size) * 0.35);
+      border-radius: 8px;
+      border: 2px solid #222;
+      position: relative;
+      box-shadow: inset 0 0 6px rgba(0,0,0,0.3);
+      transition: transform 0.1s;
+      box-sizing: border-box;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .walkable { background: #4b2e20; }
+    .obstacle { background: #555; }
+    .goal { 
+        background: #ffffff; 
+        color: black; 
+        animation: goal-pulse 1.5s infinite;
+    }
+    .question {
+      background: #ffcc00;
+      color: black;
+      animation: pulse 1s infinite;
+    }
+   
+    @keyframes pulse {
+      0% { box-shadow: 0 0 8px #ff0; transform: scale(1); }
+      50% { box-shadow: 0 0 20px #ffd700; transform: scale(1.05); }
+      100% { box-shadow: 0 0 8px #ff0; transform: scale(1); }
+    }
+
+    @keyframes goal-pulse {
+      0% { box-shadow: 0 0 10px #fff; }
+      50% { box-shadow: 0 0 25px #fff, 0 0 40px #00e6e6; }
+      100% { box-shadow: 0 0 10px #fff; }
+    }
+
+    #player-icon {
+      position: absolute;
+      width: var(--cell-size);
+      height: var(--cell-size);
+      background-image: url('https://i.postimg.cc/NfXFBfzc/1b3c03ed-3020-4e80-a26c-a90eae7c8b36.png');
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      pointer-events: none;
+      user-select: none;
+      transition: transform 0.08s linear;
+    }
+
+    #question-box-maze {
+      width: 480px;
+      background: linear-gradient(145deg, #2f3242, #252834);
+      border: 2px solid #888;
+      border-radius: 16px;
+      padding: 25px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    #question-box-maze:hover {
+      transform: scale(1.02);
+      box-shadow: 10px 10px 25px rgba(255,255,255,0.15);
+    }
+
+    #question-text {
+      font-size: 20px;
+      margin-bottom: 20px;
+      color: #f0f0f0;
+      text-align: center;
+      line-height: 1.4;
+      min-height: 54px;
+    }
+
+    #options {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+    }
+
+    .option-btn {
+      background-color: #1a1e23;
+      color: #ffffff;
+      border: 2px solid #4a5568;
+      border-radius: 12px;
+      padding: 15px;
+      font-size: 1em;
+      font-family: 'Segoe UI', sans-serif;
+      box-shadow: 0 0 5px rgba(74, 85, 104, 0.3);
+      transition: all 0.3s ease;
+      cursor: pointer;
+      user-select: none;
+      text-align: left;
+      line-height: 1.4;
+    }
+
+    .option-btn:hover:not(:disabled) {
+      transform: translateY(-3px);
+      border-color: #718096;
+    }
+
+    .option-btn.correct {
+      background-color: #0e3b2b !important;
+      border-color: #28a745 !important;
+      color: white !important;
+      box-shadow: 0 0 15px rgba(40, 167, 69, 0.5),
+                  inset 0 0 10px rgba(40, 167, 69, 0.2) !important;
+    }
+
+    .option-btn.incorrect {
+      background-color: #4f1b20 !important;
+      border-color: #dc3545 !important;
+      color: white !important;
+      box-shadow: 0 0 15px rgba(220, 53, 69, 0.5),
+                  inset 0 0 10px rgba(220, 53, 69, 0.2) !important;
+    }
+
+    #stats {
+      position: absolute;
+      top: 15px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 18px;
+      text-align: center;
+      z-index: 10;
+    }
+
+    #timer-bar {
+      width: 100%;
+      height: 10px;
+      background: #666;
+      border-radius: 6px;
+      margin-bottom: 15px;
+      overflow: hidden;
+      box-shadow: inset 0 0 5px rgba(0,0,0,0.5);
+      position: relative;
+    }
+
+    #timer-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #00ff00, #ffff00, #ff0000);
+      width: 100%;
+      transition: width 1s linear;
+    }
+    #timer-label {
+      position: absolute;
+      top: -20px;
+      width: 100%;
+      text-align: center;
+      color: white;
+      font-size: 14px;
+      font-weight: bold;
+      pointer-events: none;
+      user-select: none;
+    }
+    
+    /* --- Các Modal & Thông báo --- */
+    .notification-overlay, #pause-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.8);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .notification-box {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      padding: 40px 50px;
+      border-radius: 20px;
+      text-align: center;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+      max-width: 600px;
+    }
+
+    .notification-box h2 { margin: 0 0 20px 0; font-size: 32px; }
+    .notification-box p { margin: 0 0 30px 0; font-size: 18px; opacity: 0.9; line-height: 1.6; }
+
+    .notification-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+    }
+    .notification-close {
+      background: #7f8c8d;
+      color: white;
+      border: none;
+      padding: 12px 30px;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.3s;
+      margin: 5px;
+    }
+    .notification-close.confirm-yes { background: #28a745; }
+    .notification-close.confirm-yes:hover { background: #218838; }
+    .notification-close.confirm-no { background: #dc3545; }
+    .notification-close.confirm-no:hover { background: #c82333; }
+    .notification-close:hover { background: #6c757d; }
+    
+    .notification-close[data-action="show-instructions"] {
+        background: #17a2b8;
+    }
+    .notification-close[data-action="show-instructions"]:hover {
+        background: #138496;
+    }
+
+    /* --- Màn hình Thua / Thắng --- */
+    #game-over-screen, #you-win-screen {
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        color: white;
+        background: rgba(0, 0, 0, 0.7);
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1000;
+        flex-direction: column;
+    }
+
+    #game-over-content {
+        background: linear-gradient(135deg, #e53935, #b31f1f);
+        padding: 50px;
+        border-radius: 20px;
+        box-shadow: 0 0 30px rgba(255, 0, 0, 0.5);
+        animation: pulseAnimation 1s ease-in-out forwards;
+    }
+    
+    #you-win-content {
+        background: linear-gradient(135deg, #4caf50, #8bc34a);
+        padding: 50px;
+        border-radius: 20px;
+        box-shadow: 0 0 30px rgba(0, 255, 0, 0.5);
+        animation: pulseAnimation 1s ease-in-out forwards;
+    }
+
+    @keyframes pulseAnimation { from {transform: scale(0.9);} to { transform: scale(1); } }
+
+    #game-over-title, #you-win-title {
+        font-size: 60px;
+        font-weight: bold;
+        margin-bottom: 20px;
+        text-shadow: 2px 2px 5px rgba(0,0,0,0.7);
+    }
+
+    #game-over-message, #you-win-message { font-size: 24px; margin-bottom: 30px; }
+
+    .restart-button {
+        background: linear-gradient(to right, #4caf50, #8bc34a);
+        color: white;
+        padding: 15px 40px;
+        border: none;
+        border-radius: 10px;
+        font-size: 22px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: transform 0.3s, box-shadow 0.3s;
+    }
+    .restart-button:hover {
+        transform: scale(1.05);
+        box-shadow: 0 0 15px rgba(76, 175, 80, 0.8);
+    }
+  </style>
+</head>
+<body>
+
+  <div id="maze-difficulty-screen" class="screen active">
+    <div class="selection-container">
+      <a href="1.html#game-selection-screen" class="corner-button home-button">🏠</a>
+      <h1 class="selection-title">Chọn độ khó</h1>
+      <button class="game-btn instructions-btn" data-action="show-instructions">📜 Hướng dẫn chơi</button>
+      <div class="game-buttons">
+        <button class="game-btn" data-action="start-maze" data-difficulty="easy">Dễ</button>
+        <button class="game-btn" data-action="start-maze" data-difficulty="medium">Trung bình</button>
+        <button class="game-btn" data-action="start-maze" data-difficulty="hard">Khó</button>
+        <button class="game-btn" data-action="start-maze" data-difficulty="catastrophe">Thảm Họa</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="maze-game-screen" class="screen">
+    <button id="in-game-return-btn" data-action="confirm-quit">↩️</button>
+    <button id="in-game-instructions-btn" data-action="show-instructions">📜</button>
+    
+    <div id="stats">
+        <span>Câu đúng: <span id="correct-count">0</span></span> |
+        <span>Câu sai: <span id="incorrect-count">0</span></span> |
+        <span>Điểm cao: <span id="high-score">0</span></span>
+    </div>
+    <div id="container">
+      <div id="question-box-maze">
+        <div id="timer-bar">
+          <div id="timer-fill"></div>
+          <div id="timer-label"></div>
+        </div>
+        <div id="question-text">Di chuyển đến ô có dấu "?" để nhận câu hỏi</div>
+        <div id="options"></div>
+      </div>
+      <div id="game-board">
+        <div id="player-icon"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="game-over-screen" class="screen">
+      <div id="game-over-content">
+          <h1 id="game-over-title">Thất bại!</h1>
+          <p id="game-over-message">Đường đi bị bít, bạn không thể đến đích.</p>
+          <button class="restart-button" data-action="back-to-selection">Chơi lại</button>
+      </div>
+  </div>
+
+  <div id="you-win-screen" class="screen">
+    <div id="you-win-content">
+        <h1 id="you-win-title">🎉 Chúc mừng!</h1>
+        <p id="you-win-message">Bạn đã đến đích và đạt đủ điểm để chiến thắng!</p>
+        <button class="restart-button" data-action="back-to-selection">Chơi lại</button>
+    </div>
+  </div>
+
+  <div id="pause-modal" class="screen">
+    <div class="notification-box">
+      <h2>Tạm dừng</h2>
+      <button class="notification-close" id="resume-btn">Tiếp tục</button>
+      <button class="notification-close" data-action="show-instructions">📜 Hướng dẫn</button>
+      <button class="notification-close" id="quit-btn">Thoát</button>
+    </div>
+  </div>
+
+  <div id="notification-overlay" class="notification-overlay">
+    <div class="notification-box">
+      <h2 id="notification-title"></h2>
+      <p id="notification-message"></p>
+      <div id="notification-buttons" class="notification-buttons">
+          <button class="notification-close" data-action="close-notification">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+<script type="text/javascript" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+</script>
+<script>
+  MathJax = {
+    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
+    svg: { fontCache: 'global' }
+  };
+</script>
+<script>
+    /* --- js/config.js (Phần Mê Cung) --- */
+    const GAME_CONFIG = {
+        MAZE: {
+            TYPES: {
+                WALKABLE: 'walkable',
+                OBSTACLE: 'obstacle',
+                QUESTION: 'question',
+                GOAL: 'goal'
+            },
+            DIFFICULTY_SETTINGS: {
+                easy:        { size: 8,  questionsToPlace: 5,  time: 60000,  cellScale: 50, minQuestionDist: 2, braidFactor: 0.2,  branchFactor: 0.05, requiredCorrectAnswers: 3 },
+                medium:      { size: 10, questionsToPlace: 7,  time: 90000,  cellScale: 40, minQuestionDist: 3, braidFactor: 0.1,  branchFactor: 0.1,  requiredCorrectAnswers: 5 },
+                hard:        { size: 18, questionsToPlace: 12, time: 120000, cellScale: 28, minQuestionDist: 4, braidFactor: 0.0,  branchFactor: 0.35, requiredCorrectAnswers: 10 },
+                catastrophe: { size: 28, questionsToPlace: 20, time: 150000, cellScale: 20, minQuestionDist: 5, braidFactor: 0.0,  branchFactor: 0.50, requiredCorrectAnswers: 16 }
+            },
+            QUESTIONS: [
+                 { q: "Trong không gian, góc giữa hai đường thẳng a và b là góc giữa hai đường thẳng a' và b' thỏa mãn điều kiện nào?", options: ["A. Cùng đi qua một điểm và lần lượt song song hoặc trùng với a và b.", "B. Lần lượt song song hoặc trùng với a và b.", "C. Cùng đi qua một điểm và lần lượt song song với a và b.", "D. Lần lượt song song với a và b."], correct: 0, category: "easy" },
+                { q: "Trong không gian, hai đường thẳng a và b được gọi là vuông góc với nhau nếu góc giữa chúng bằng bao nhiêu?", options: ["A. $90°$", "B. $45°$", "C. $0°$", "D. $180°$"], correct: 0, category: "easy" },
+                { q: "Trong không gian cho hai đường thẳng a và b song song với nhau, nếu đường thẳng c vuông góc với đường thẳng a thì:", options: ["A. Đường thẳng c vuông góc với đường thẳng b.", "B. Đường thẳng c song song với đường thẳng b.", "C. Đường thẳng c cắt đường thẳng b.", "D. Đường thẳng c và b chéo nhau."], correct: 0, category: "easy" },
+                { q: "Cho hình lập phương $ABCD.A'B'C'D'$. Đường thẳng nào sau đây vuông góc với đường thẳng $BC'$?", options: ["A. $A'D$", "B. $AC$", "C. $BB'$", "D. $CD$"], correct: 0, category: "easy" },
+                { q: "Trong không gian cho điểm O và đường thẳng d. Qua điểm O có bao nhiêu mặt phẳng vuông góc với đường thẳng d?", options: ["A. 1", "B. Vô số", "C. 2", "D. 0"], correct: 0, category: "easy" },
+                { q: "Cho hình chóp $S.ABC$, biết $SA \\perp (ABC)$ và tam giác ABC vuông tại A. Đường thẳng AB vuông góc với mặt phẳng nào?", options: ["A. $(SAC)$", "B. $(SBC)$", "C. $(SAB)$", "D. $(ABC)$"], correct: 0, category: "easy" },
+                { q: "Cho hình chóp $S.ABCD$ có đáy là hình vuông và SA vuông góc với mặt phẳng đáy. Mệnh đề nào sau đây sai?", options: ["A. $CD \\perp (SAD)$", "B. $BC \\perp (SAB)$", "C. $BD \\perp (SAC)$", "D. $SA \\perp (SBD)$"], correct: 3, category: "easy" },
+                { q: "Cho các đường thẳng a, b và các mặt phẳng $(\\alpha), (\\beta)$. Mệnh đề nào sau đây đúng?", options: ["A. Nếu $a \\subset (\\alpha)$ và $a \\perp (\\beta)$ thì $(\\alpha) \\perp (\\beta)$", "B. Nếu $a \\perp b, a \\subset (\\alpha), b \\subset (\\beta)$ thì $(\\alpha) \\perp (\\beta)$", "C. Nếu $a \\perp (\\alpha)$ và $a \\perp b$ thì $b // (\\alpha)$", "D. Nếu $(\\alpha) \\perp (\\beta), a \\subset (\\alpha), b \\subset (\\beta)$ thì $a \\perp b$"], correct: 0, category: "easy" },
+                { q: "Cho hình lập phương $ABCD.A'B'C'D'$. Góc giữa mặt phẳng $(ABCD)$ và $(ACC'A')$ bằng:", options: ["A. $30°$", "B. $45°$", "C. $60°$", "D. $90°$"], correct: 3, category: "easy" },
+                { q: "Mệnh đề nào sau đây SAI?", options: ["A. Khoảng cách giữa hai mặt phẳng song song là khoảng cách từ một điểm bất kì trên mặt phẳng này đến mặt phẳng kia.", "B. Khoảng cách giữa đường thẳng a và mặt phẳng (P) song song với a là khoảng cách từ một điểm A bất kì thuộc a tới mặt phẳng (P).", "C. Nếu hai đường thẳng a,b chéo nhau và vuông góc với nhau thì đường vuông góc chung của chúng nằm trong mặt phẳng chứa đường này và vuông góc với đường kia.", "D. Khoảng cách giữa hai đường thẳng chéo nhau a, b là khoảng cách từ một điểm M bất kì thuộc a đến đường thẳng b."], correct: 3, category: "easy" },
+                { q: "Cho khối chóp $S.ABC$ có chiều cao bằng 3, đáy ABC có diện tích bằng 10. Thể tích khối chóp $S.ABC$ bằng:", options: ["A. 10", "B. 30", "C. 15", "D. 5"], correct: 0, category: "easy" },
+                { q: "Nếu đường thẳng a vuông góc với mặt phẳng (P) và cắt (P) tại H thì hình chiếu của a trên (P) là:", options: ["A. Một đường thẳng đi qua H.", "B. Một đường thẳng song song với a.", "C. Điểm H.", "D. Toàn bộ mặt phẳng (P)."], correct: 2, category: "easy" },
+                { q: "Cho hình chóp $S.ABCD$ có đáy là hình chữ nhật. Gọi M, N là trung điểm của SC và SD. Mệnh đề nào sau đây đúng?", options: ["A. $MN \\perp SC$", "B. $MN // AB$", "C. $MN \\perp AD$", "D. $MN // CD$"], correct: 3, category: "medium" },
+                { q: "Cho hình hộp chữ nhật $ABCD.A'B'C'D'$. Đường thẳng AD vuông góc với đường thẳng nào sau đây?", options: ["A. $CD$", "B. $BD$", "C. $C'D'$", "D. $BB'$"], correct: 3, category: "medium" },
+                { q: "Cho hai đường thẳng a, b song song. Đường thẳng d vuông góc với a. Mệnh đề nào sau đây đúng?", options: ["A. $d // b$", "B. $d \\perp b$", "C. d và b chéo nhau", "D. d trùng b"], correct: 1, category: "medium" },
+                { q: "Cho hình chóp $S.ABCD$ có đáy là hình thoi. Gọi M, N là trung điểm SB, SD. Mệnh đề nào sau đây đúng?", options: ["A. $MN // AC$", "B. $MN \\perp SA$", "C. $MN // BD$", "D. $MN \\perp AD$"], correct: 2, category: "medium" },
+                { q: "Hai đường thẳng phân biệt cùng vuông góc với một mặt phẳng thì:", options: ["A. Song song với nhau.", "B. Vuông góc với nhau.", "C. Cắt nhau.", "D. Chéo nhau."], correct: 0, category: "medium" },
+                { q: "Cho hình chóp đều $S.ABCD$. Mệnh đề nào sau đây đúng?", options: ["A. $SA \\perp (ABCD)$", "B. $AC \\perp (SBD)$", "C. $AB \\perp (SBC)$", "D. $BD \\perp (SAC)$"], correct: 3, category: "medium" },
+                { q: "Cho tứ diện $ABCD$ có $AB = AC$ và $DB = DC$. Gọi M là trung điểm của BC. Mệnh đề nào sau đây đúng?", options: ["A. $(ABC) \\perp (DBC)$", "B. $BC \\perp (ADM)$", "C. $AB \\perp (ACD)$", "D. $AD \\perp (ABC)$"], correct: 1, category: "medium" },
+                { q: "Cho hình chóp $S.ABCD$ có đáy là hình vuông và $SA \\perp (ABCD)$. Mệnh đề nào sau đây đúng?", options: ["A. $BC \\perp (SCD)$", "B. $BC \\perp (SAD)$", "C. $BC \\perp (SAB)$", "D. $BC \\perp (SAC)$"], correct: 2, category: "medium" },
+                { q: "Cho hình chóp $S.ABCD$ đáy là hình thoi tâm O, $SA = SC, SB = SD$. Mệnh đề nào sau đây đúng?", options: ["A. $SA \\perp (ABCD)$", "B. $SO \\perp (ABCD)$", "C. $SC \\perp BD$", "D. $SB \\perp AC$"], correct: 1, category: "medium" },
+                { q: "Cho hình chóp $S.ABCD$ có $SA \\perp (ABCD)$ và đáy là hình vuông tâm O. Góc giữa $(SBD)$ và $(ABCD)$ là:", options: ["A. Góc SOA", "B. Góc SCA", "C. Góc SBA", "D. Góc SDB"], correct: 0, category: "medium" },
+                { q: "Cho hình chóp $S.ABCD$ có đáy là hình bình hành tâm O và $SA=SC, SB=SD$. Mệnh đề nào sau đây sai?", options: ["A. $SO \\perp (ABCD)$", "B. $(SAC) \\perp (ABCD)$", "C. $(SBD) \\perp (SAC)$", "D. $(SBD) \\perp (ABCD)$"], correct: 2, category: "medium" },
+                { q: "Cho hình chóp đều $S.ABC$ có M là trung điểm của BC. Góc giữa hai mặt phẳng $(SBC)$ và $(ABC)$ là:", options: ["A. Góc SBA", "B. Góc SCA", "C. Góc SMA", "D. Góc ASB"], correct: 2, category: "medium" },
+                { q: "Cho hình chóp $S.ABC$ có đáy là tam giác vuông tại B, $SA \\perp (ABC)$. Khoảng cách từ A đến $(SBC)$ là:", options: ["A. Độ dài đoạn AB.", "B. Độ dài đoạn AC.", "C. Độ dài đường cao AH của tam giác SAB.", "D. Độ dài đường cao AK của tam giác SAC."], correct: 2, category: "medium" },
+                { q: "Cho hình lập phương $ABCD.A'B'C'D'$ cạnh a. Thể tích khối lập phương bằng:", options: ["A. $a^3$", "B. $\\frac{a^3}{3}$", "C. $3a^2$", "D. $6a^2$"], correct: 0, category: "medium" },
+                { q: "Cho hình lập phương. Hình chiếu vuông góc của điểm C' trên mặt phẳng $(ABCD)$ là điểm nào?", options: ["A. A", "B. B", "C. C", "D. D"], correct: 2, category: "medium" },
+                { q: "Cho hình chóp $S.ABCD$ có đáy là hình vuông cạnh a, $SA \\perp (ABCD)$. Góc giữa đường thẳng SC và $(ABCD)$ là:", options: ["A. Góc SCB", "B. Góc SCD", "C. Góc SCA", "D. Góc SCO"], correct: 2, category: "medium" },
+                { q: "Cho tứ diện $ABCD$ có $AB = CD = 2a$. Gọi M, N là trung điểm của AD và BC. Biết $MN = a\\sqrt{3}$. Góc giữa hai đường thẳng AB và CD bằng:", options: ["A. $45°$", "B. $90°$", "C. $30°$", "D. $60°$"], correct: 3, category: "hard" },
+                { q: "Cho tứ diện $OABC$ có $OA, OB, OC$ đôi một vuông góc và $OA = OB = OC = a$. Gọi M là trung điểm của BC. Góc giữa hai đường thẳng OM và AB bằng:", options: ["A. $90°$", "B. $45°$", "C. $60°$", "D. $30°$"], correct: 2, category: "hard" },
+                { q: "Cho tứ diện $ABCD$ có $AB = CD = 2$. Gọi M, N là trung điểm của AD và BC. Biết góc giữa hai đường thẳng AB và MN bằng $30°$. Độ dài đoạn thẳng MN bằng:", options: ["A. 1", "B. $\\sqrt{2}$", "C. $\\sqrt{3}$", "D. 2"], correct: 2, category: "hard" },
+                { q: "Cho hình chóp $S.ABCD$ có tất cả các cạnh đều bằng a. Gọi I và J lần lượt là trung điểm của SC và BC. Số đo của góc $(IJ, CD)$ là:", options: ["A. $30°$", "B. $45°$", "C. $60°$", "D. $90°$"], correct: 2, category: "hard" },
+                { q: "Cho hình chóp $S.ABCD$ có đáy là hình vuông, $SA \\perp (ABCD)$. Gọi AE, AF lần lượt là đường cao của $\\Delta SAB$ và $\\Delta SAD$. Mệnh đề nào sau đây đúng?", options: ["A. $SC \\perp (AEF)$", "B. $SB \\perp (AEF)$", "C. $SD \\perp (AEF)$", "D. $SA \\perp (AEF)$"], correct: 0, category: "hard" },
+                { q: "Cho hình chóp $S.ABCD$ đáy vuông, H là trung điểm AB, $SH \\perp (ABCD)$, K là trung điểm AD. Mệnh đề nào sau đây đúng?", options: ["A. $AC \\perp SK$", "B. $BD \\perp SK$", "C. $SC \\perp HK$", "D. $CD \\perp SH$"], correct: 0, category: "hard" },
+                { q: "Cho hình chóp $S.ABC$ có đáy là tam giác đều cạnh 2a, $SA \\perp (ABC)$ và $SA = a$. Góc giữa $(SBC)$ và $(ABC)$ bằng:", options: ["A. $30°$", "B. $45°$", "C. $60°$", "D. $90°$"], correct: 0, category: "hard" },
+                { q: "Cho hình chóp $S.ABC$ đáy vuông cân tại B, $SA \\perp (ABC)$, $AB=BC=a$, $SA=a\\sqrt{3}$. Góc giữa $(SBC)$ và $(ABC)$ bằng:", options: ["A. $30°$", "B. $45°$", "C. $60°$", "D. $75°$"], correct: 2, category: "hard" },
+                { q: "Cho hình chóp $S.ABCD$ đáy chữ nhật $AB=a, AD=2a, SA \\perp (ABCD)$. Góc giữa $(SBD)$ và $(ABCD)$ bằng $60°$. Thể tích V của khối chóp $S.ABCD$ là:", options: ["A. $\\frac{2a^3\\sqrt{15}}{15}$", "B. $\\frac{4a^3\\sqrt{15}}{15}$", "C. $\\frac{a^3\\sqrt{15}}{3}$", "D. $\\frac{2a^3\\sqrt{5}}{3}$"], correct: 1, category: "hard" },
+                { q: "Cho hình chóp $S.ABC$ có đáy là tam giác đều cạnh a, $SA = a\\sqrt{3}$ và $SA \\perp (ABC)$. Khoảng cách từ S đến đường thẳng BC bằng:", options: ["A. $a\\sqrt{3}$", "B. $\\frac{a\\sqrt{15}}{2}$", "C. $2a$", "D. $\\frac{a\\sqrt{7}}{2}$"], correct: 1, category: "hard" },
+                { q: "Cho hình chóp $S.ABCD$ có đáy là hình vuông cạnh a, $SA \\perp (ABCD)$ và $SA=a\\sqrt{3}$. Mệnh đề nào sau đây đúng?", options: ["A. Khoảng cách từ A đến (SBC) là a.", "B. Khoảng cách từ A đến (SBC) là $\\frac{a\\sqrt{3}}{2}$.", "C. Khoảng cách từ A đến (SCD) là $a\\sqrt{3}$.", "D. Khoảng cách từ A đến (SBD) là $\\frac{a\\sqrt{2}}{2}$."], correct: 1, category: "hard" },
+                { q: "Cho hình chóp $S.ABC$ có đáy ABC là tam giác vuông tại B có $AB = 1, \\angle ACB = 30°$, $SA \\perp (ABC)$ và $SA=2$. Mệnh đề nào đúng?", options: ["A. Thể tích khối chóp S.ABC là $\\frac{\\sqrt{3}}{3}$.", "B. $BC = 1$.", "C. Khoảng cách từ B đến (SAC) là 1.", "D. Góc giữa SC và đáy là $60°$."], correct: 0, category: "hard" },
+                { q: "Cho hình chóp tứ giác đều $S.ABCD$. Góc phẳng của góc nhị diện $[S, AC, B]$ là:", options: ["A. Góc SBO", "B. Góc SOB", "C. Góc SCB", "D. Góc ASB"], correct: 1, category: "hard" },
+                { q: "Cho hình chóp $S.ABCD$ có đáy là hình vuông cạnh 2a, $SA \\perp (ABCD)$ và $SA = a\\sqrt{6}$. Góc giữa hai mặt phẳng $(SBD)$ và $(ABCD)$ bằng:", options: ["A. $30°$", "B. $45°$", "C. $60°$", "D. $75°$"], correct: 2, category: "hard" },
+                { q: "Cho lăng trụ đứng tam giác $ABC.A'B'C'$ có đáy ABC là tam giác cân, $AB=AC=a, \\angle BAC=120°, AA'=a\\sqrt{2}$. Góc giữa hai đường thẳng AB' và BC là:", options: ["A. $30°$", "B. $45°$", "C. $60°$", "D. $90°$"], correct: 2, category: "hard" },
+                { q: "Cho hình chóp $S.ABC$ có đáy ABC là tam giác vuông cân tại B, $AB=BC=a, SA \\perp (ABC)$ và $SA=a$. Góc giữa hai mặt phẳng $(SAC)$ và $(SBC)$ là:", options: ["A. $30°$", "B. $45°$", "C. $60°$", "D. $90°$"], correct: 2, category: "hard" },
+                { q: "Cho hình chóp tam giác đều $S.ABC$ có cạnh đáy bằng a, cạnh bên 2a. Gọi O là tâm đáy. Góc giữa cạnh bên SA và mặt đáy $(ABC)$ là:", options: ["A. Góc SAO", "B. Góc SMO (M là trung điểm BC)", "C. Góc SBO", "D. Góc SCA"], correct: 0, category: "hard" },
+                { q: "Cho lăng trụ đứng $ABC.A'B'C'$ có đáy là tam giác đều cạnh 2a. Góc giữa $(AB'C')$ và mặt đáy bằng $45°$. Thể tích lăng trụ là:", options: ["A. $3a^3$", "B. $a^3\\sqrt{3}$", "C. $3a^3\\sqrt{3}$", "D. $\\frac{3a^3\\sqrt{3}}{2}$"], correct: 2, category: "hard" },
+                { q: "Cho hình chóp $S.ABC$ đáy là tam giác đều cạnh a, $SA \\perp$ đáy. Góc giữa SA và $(SBC)$ bằng $45°$. Thể tích khối chóp là:", options: ["A. $\\frac{a^3}{8}$", "B. $\\frac{a^3\\sqrt{3}}{12}$", "C. $\\frac{a^3}{4}$", "D. $\\frac{\\sqrt{3}a^3}{8}$"], correct: 0, category: "hard" },
+                { q: "Cho hình chóp $S.ABCD$ có đáy là hình vuông, $SA \\perp$ đáy. Gọi H, K lần lượt là hình chiếu của A trên SB, SD. Mệnh đề nào sau đây đúng?", options: ["A. $(SAC) \\perp (SBD)$", "B. $(SAB) \\perp (SBC)$", "C. $(SAC) \\perp (AHK)$", "D. $(SAD) \\perp (SBC)"], correct: 2, category: "hard" },
+                { q: "Cho hình lập phương $ABCD.A'B'C'D'$. Gọi M là trung điểm của DD'. Cosin của góc giữa hai đường thẳng BC' và C'M là:", options: ["A. $\\frac{1}{\\sqrt{10}}$", "B. $\\frac{2}{3}$", "C. $\\frac{1}{\\sqrt{5}}$", "D. $\\frac{2}{\\sqrt{10}}$"], correct: 0, category: "catastrophe" },
+                { q: "Cho hình chóp $S.ABCD$ có đáy là nửa lục giác đều nội tiếp đường tròn đường kính $AD=2a$. Cạnh SA vuông góc với đáy và $SA = a\\sqrt{3}$. M là điểm trên SB sao cho $AM \\perp MD$. Tỉ số $\\frac{SM}{SB}$ bằng:", options: ["A. $\\frac{1}{3}$", "B. $\\frac{2}{3}$", "C. $\\frac{3}{4}$", "D. $\\frac{1}{2}$"], correct: 2, category: "catastrophe" },
+                { q: "Chóp đều $S.ABC$ có đáy là tam giác đều cạnh 2a, các mặt bên là tam giác vuông cân tại S. $(\\alpha)$ là mặt phẳng qua trọng tâm G của đáy và vuông góc với SC. Diện tích thiết diện tạo bởi $(\\alpha)$ và hình chóp là:", options: ["A. $\\frac{2a^2}{9}$", "B. $\\frac{4a^2}{9}$", "C. $\\frac{a^2\\sqrt{2}}{3}$", "D. $\\frac{2a^2}{3}$"], correct: 1, category: "catastrophe" },
+                { q: "Hộp đứng $ABCD.A'B'C'D'$ có đáy là hình vuông cạnh a, $AA' = 3a$. Mặt phẳng (P) qua A và vuông góc với AC' cắt BB', CC', DD' lần lượt tại I, J, K. Diện tích thiết diện AIJK là:", options: ["A. $\\frac{11a^2}{3}$", "B. $\\frac{a^2\\sqrt{11}}{3}$", "C. $\\frac{3a^2}{\\sqrt{11}}$", "D. $3a^2$"], correct: 0, category: "catastrophe" },
+                { q: "Hai tam giác ACD và BCD nằm trên hai mặt phẳng vuông góc và $AC = AD = BC = BD = a, CD = 2x$. Giá trị của x để $(ABC) \\perp (ABD)$ là:", options: ["A. $x=\\frac{a}{2}$", "B. $x=\\frac{a\\sqrt{3}}{3}$", "C. $x=\\frac{a\\sqrt{2}}{2}$", "D. $x=\\frac{a}{3}$"], correct: 1, category: "catastrophe" },
+                { q: "Lăng trụ đều $ABC.A'B'C'$ có tất cả các cạnh bằng a. Gọi $\\alpha$ là góc giữa $(AB'C')$ và $(A'BC)$. Giá trị $\\cos{\\alpha}$ là:", options: ["A. $\\frac{1}{7}$", "B. $\\frac{2}{7}$", "C. $\\frac{3}{5}$", "D. $\\frac{1}{5}$"], correct: 0, category: "catastrophe" },
+                { q: "Kim tự tháp Kheops có dạng hình chóp tứ giác đều cạnh đáy 230m, cạnh bên 219m. Góc tạo bởi cạnh bên và mặt đáy xấp xỉ:", options: ["A. $42°$", "B. $48°$", "C. $53°$", "D. $58°$"], correct: 1, category: "catastrophe" },
+                { q: "Khối gỗ hình hộp chữ nhật có $AB=10, BC=15$. Góc giữa $(A'BCD')$ và $(ABCD)$ bằng $30°$. Tổng diện tích các mặt của khối gỗ xấp xỉ:", options: ["A. 877", "B. 787", "C. 887", "D. 778"], correct: 0, category: "catastrophe" },
+                { q: "Cho hình lập phương $ABCD.A'B'C'D'$ cạnh a. Khoảng cách giữa BD và A'C' là:", options: ["A. a", "B. $a\\sqrt{2}$", "C. $a\\sqrt{3}$", "D. $\\frac{a\\sqrt{3}}{2}$"], correct: 0, category: "catastrophe" },
+                { q: "Chóp $S.ABCD$ đáy vuông $AB = a/2$, $SA \\perp$ đáy, $SA = (a\\sqrt{3})/2$. Khoảng cách giữa AD và SC bằng:", options: ["A. $\\frac{a\\sqrt{3}}{4}$", "B. $\\frac{a}{2}$", "C. $\\frac{a\\sqrt{2}}{2}$", "D. $\\frac{a\\sqrt{3}}{2}$"], correct: 0, category: "catastrophe" },
+                { q: "Chóp cụt đều đáy lục giác, cạnh đáy lớn 2dm, đáy nhỏ 1dm, chiều cao 3dm. Thể tích chậu nước là:", options: ["A. $\\frac{21\\sqrt{3}}{2}$ dm$^3$", "B. $21\\sqrt{3}$ dm$^3$", "C. $\\frac{21\\sqrt{2}}{4}$ dm$^3$", "D. $10\\sqrt{3}$ dm$^3$"], correct: 0, category: "catastrophe" },
+                { q: "Chóp S.ABCD đáy chữ nhật $AB=a, AD=2a, SA \\perp$ đáy. Góc giữa $(SBD)$ và $(ABCD)$ là $60°$. Thể tích V là:", options: ["A. $\\frac{2a^3\\sqrt{15}}{15}$", "B. $\\frac{a^3\\sqrt{15}}{6}$", "C. $\\frac{4a^3\\sqrt{15}}{15}$", "D. $\\frac{a^3\\sqrt{15}}{3}$"], correct: 1, category: "catastrophe" },
+                { q: "Lăng trụ đứng $ABC.A'B'C'$ đáy tam giác đều cạnh a, khoảng cách từ A đến $(A'BC)$ bằng $\\frac{a\\sqrt{57}}{19}$. Chiều cao lăng trụ là:", options: ["A. 2a", "B. $a\\sqrt{3}$", "C. $\\frac{a}{2}$", "D. a"], correct: 2, category: "catastrophe" },
+                { q: "Một chiếc máy bay cất cánh với vận tốc 240 km/h, đường bay tạo với phương ngang góc $30°$. Sau 1 phút, máy bay đạt độ cao:", options: ["A. 1 km", "B. 2 km", "C. 3 km", "D. 4 km"], correct: 1, category: "catastrophe" },
+                { q: "Chóp tứ giác $S.ABCD$ đáy chữ nhật, $AB=4a, AD=3a$, các cạnh bên bằng 5a. Góc nhị diện $[S, BC, O]$ (O là tâm đáy) xấp xỉ:", options: ["A. $65.4°$", "B. $71.4°$", "C. $75.4°$", "D. $68.4°$"], correct: 0, category: "catastrophe" },
+                { q: "Kim tự tháp Memphis cao 98m, cạnh đáy 180m. Góc nhị diện giữa mặt bên và mặt đáy xấp xỉ:", options: ["A. $45.5°$", "B. $47.4°$", "C. $50.2°$", "D. $53.8°$"], correct: 1, category: "catastrophe" },
+                { q: "Chóp S.ABCD đáy thang cân (AD//BC), BC=2, AB=AD=CD=1, mặt bên SBC là tam giác đều. Để $SD \\perp AC$ thì độ dài SD phải bằng:", options: ["A. 1", "B. $\\sqrt{2}$", "C. $\\sqrt{3}$", "D. 2"], correct: 3, category: "catastrophe" },
+                { q: "Khay đá viên hình chóp cụt đáy vuông, cạnh đáy lớn 3cm, đáy nhỏ 1cm, chiều cao mặt bên $\\sqrt{2}$ cm. Cosin của góc giữa đường chéo viên đá và cạnh đáy lớn xấp xỉ:", options: ["A. 0.55", "B. 0.61", "C. 0.67", "D. 0.71"], correct: 2, category: "catastrophe" },
+                { q: "Chóp S.ABCD đáy thang vuông tại A, D; $AB=2a; SA=AD=DC=a; SA \\perp (ABCD)$. Diện tích thiết diện tạo bởi mặt phẳng $(\\alpha)$ qua SD và $(\\alpha) \\perp (SAC)$ là:", options: ["A. $\\frac{a^2\\sqrt{3}}{2}$", "B. $a^2\\sqrt{3}$", "C. $\\frac{a^2\\sqrt{6}}{2}$", "D. $a^2\\sqrt{2}$"], correct: 0, category: "catastrophe" },
+                { q: "Chóp S.ABC đáy vuông tại B, $BA=3a, BC=4a; (SBC) \\perp (ABC)$. $SB=2a\\sqrt{3}$ và $\\angle SBC = 30°$. Khoảng cách từ B đến (SAC) là:", options: ["A. $\\frac{3a\\sqrt{7}}{7}$", "B. $\\frac{6a\\sqrt{7}}{7}$", "C. $\\frac{a\\sqrt{21}}{7}$", "D. $\\frac{2a\\sqrt{21}}{7}$"], correct: 1, category: "catastrophe" },
+                { q: "Chóp S.ABC đáy tam giác đều cạnh a. Hình chiếu của S là H trên AB sao cho $HA=2HB$. Góc giữa SC và (ABC) là $60°$. Khoảng cách giữa SA và BC là:", options: ["A. $\\frac{a\\sqrt{42}}{8}$", "B. $\\frac{3a\\sqrt{42}}{28}$", "C. $\\frac{a\\sqrt{21}}{7}$", "D. $\\frac{a\\sqrt{42}}{14}$"], correct: 1, category: "catastrophe" },
+                { q: "Chóp tam giác đều S.ABC có $SA = 1$. D, E là trung điểm SA, SC. Thể tích S.ABC biết $BD \\perp AE$ là:", options: ["A. $\\frac{\\sqrt{21}}{54}$", "B. $\\frac{\\sqrt{14}}{27}$", "C. $\\frac{7\\sqrt{2}}{54}$", "D. $\\frac{\\sqrt{14}}{54}$"], correct: 0, category: "catastrophe" },
+                { q: "Hộp đứng $ABCD.A'B'C'D'$ đáy hình thoi cạnh a, $\\angle ABC=120°$. AC' tạo với đáy góc $60°$. Thể tích khối hộp là:", options: ["A. $\\frac{3a^3}{2}$", "B. $3a^3$", "C. $\\frac{a^3\\sqrt{3}}{2}$", "D. $a^3\\sqrt{3}$"], correct: 0, category: "catastrophe" },
+                { q: "Cho hình chóp $S.ABCD$, đáy là hình vuông cạnh a. Tam giác SAB đều và nằm trong mặt phẳng vuông góc với đáy. Thể tích khối chóp S.ABCD là:", options: ["A. $\\frac{a^3\\sqrt{3}}{3}$", "B. $\\frac{a^3\\sqrt{3}}{6}$", "C. $\\frac{a^3}{3}$", "D. $a^3\\sqrt{3}$"], correct: 1, category: "catastrophe" },
+                { q: "Cho hình chóp $S.ABCD$ có đáy là hình vuông cạnh a, $SA \\perp (ABCD), SA=a$. Góc giữa $(SBC)$ và $(SAD)$ bằng:", options: ["A. $30°$", "B. $45°$", "C. $60°$", "D. $90°$"], correct: 3, category: "catastrophe" },
+                { q: "Cho hình chóp $S.ABC$ đáy là tam giác đều cạnh a, $SA=a\\sqrt{2}$ và $SA \\perp$ đáy. Gọi H là hình chiếu của A lên SM (M là trung điểm BC). Độ dài AH là:", options: ["A. $\\frac{a\\sqrt{66}}{11}$", "B. $\\frac{a\\sqrt{3}}{2}$", "C. $\\frac{a\\sqrt{6}}{11}$", "D. $\\frac{a\\sqrt{33}}{11}$"], correct: 0, category: "catastrophe" },
+                { q: "Cho hình chóp $S.ABCD$ có đáy là hình vuông, $SA \\perp$ đáy. Gọi H, K lần lượt là hình chiếu của A trên SB, SD. Mệnh đề nào sau đây đúng?", options: ["A. $(SAC) \\perp (SBD)$", "B. $(SAC) \\perp (AHK)$", "C. $(SAB) \\perp (SAD)$", "D. $(SBC) \\perp (SCD)$"], correct: 1, category: "catastrophe" },
+                { q: "Lăng trụ đứng $ABC.A'B'C'$ có đáy là tam giác vuông cân tại B, $AC = 2a$. Mặt phẳng $(A'BC)$ hợp với đáy $(ABC)$ một góc $45°$. Thể tích lăng trụ là:", options: ["A. $a^3\\sqrt{2}$", "B. $2a^3$", "C. $a^3$", "D. $\\frac{2a^3}{3}$"], correct: 2, category: "catastrophe" },
+                { q: "Chóp tam giác đều S.ABC có cạnh đáy bằng 3a, cạnh bên bằng 2a. Góc giữa cạnh bên SA và mặt đáy (ABC) có cosin bằng:", options: ["A. $\\frac{\\sqrt{3}}{2}$", "B. $\\frac{1}{2}$", "C. $\\frac{\\sqrt{3}}{3}$", "D. $\\frac{2}{3}$"], correct: 0, category: "catastrophe" },
+                { q: "Lăng trụ tam giác đều $ABC.A'B'C'$ có cạnh đáy bằng 2a và cạnh bên bằng 3a. Góc phẳng nhị diện $[C', AB, C]$ có số đo là:", options: ["A. $30°$", "B. $45°$", "C. $60°$", "D. $90°$"], correct: 2, category: "catastrophe" },
+                { q: "Chóp S.ABCD đáy vuông cạnh a, $SA=a\\sqrt{2}/2$ và $SA \\perp$ đáy. Cosin của góc giữa (SBD) và (ABCD) là:", options: ["A. $\\frac{1}{2}$", "B. $\\frac{\\sqrt{2}}{2}$", "C. $\\frac{\\sqrt{3}}{2}$", "D. $\\frac{1}{\\sqrt{3}}$"], correct: 3, category: "catastrophe" },
+                { q: "Cho hình lập phương. Góc giữa hai mặt phẳng $(A'BD)$ và $(ABCD)$ có cosin bằng:", options: ["A. $\\frac{\\sqrt{6}}{3}$", "B. $\\frac{\\sqrt{3}}{3}$", "C. $\\frac{\\sqrt{2}}{2}$", "D. $\\frac{1}{2}$"], correct: 1, category: "catastrophe" }
+            ],
+            ANIMATION_TIMES: {
+                MOVE_PLAYER: 80,
+                FEEDBACK_DURATION: 700
+            }
+        }
+    };
+
+    /* --- js/utils.js --- */
+    const Utils = {
+        showScreen: function(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); },
+        shuffleArray: function(array) { for (let i = array.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [array[i], array[j]] = [array[j], array[i]]; } return array; },
+        
+        showNotification: function(title, message, buttons = [{ text: 'Đóng', action: 'close-notification', className: '' }]) {
+            document.getElementById('notification-title').textContent = title;
+            document.getElementById('notification-message').innerHTML = message;
+
+            const buttonsContainer = document.getElementById('notification-buttons');
+            buttonsContainer.innerHTML = ''; 
+            
+            buttons.forEach(btnInfo => {
+                const button = document.createElement('button');
+                button.textContent = btnInfo.text;
+                button.className = 'notification-close ' + (btnInfo.className || '');
+                if (typeof btnInfo.action === 'string') {
+                    button.dataset.action = btnInfo.action;
+                } else if (typeof btnInfo.action === 'function') {
+                    button.onclick = () => {
+                        btnInfo.action();
+                        this.closeNotification(); 
+                    };
+                }
+                buttonsContainer.appendChild(button);
+            });
+
+            document.getElementById('notification-overlay').style.display = 'flex';
+        },
+        closeNotification: function() { document.getElementById('notification-overlay').style.display = 'none'; },
+        saveHighScore: function(key, score) { const currentHighScore = parseInt(localStorage.getItem(key) || '0'); if (score > currentHighScore) { localStorage.setItem(key, score); return true; } return false; },
+        getHighScore: function(key) { return parseInt(localStorage.getItem(key) || '0'); }
+    };
+
+    /* --- js/maze.js --- */
+    const Maze = (function() {
+        const mazeConfig = GAME_CONFIG.MAZE;
+        const mazeBoard = document.getElementById('game-board');
+        const playerIcon = document.getElementById('player-icon');
+        const mazeQuestionText = document.getElementById('question-text');
+        const mazeOptionsDiv = document.getElementById('options');
+        const mazeTimerFill = document.getElementById('timer-fill');
+        const mazeTimerLabel = document.getElementById('timer-label');
+        const mazeCorrectCountSpan = document.getElementById('correct-count');
+        const mazeIncorrectCountSpan = document.getElementById('incorrect-count');
+        const mazeHighScoreSpan = document.getElementById('high-score');
+        const mazeGameOverScreen = document.getElementById('game-over-screen');
+        const mazeGameOverMessage = document.getElementById('game-over-message');
+        const mazeYouWinScreen = document.getElementById('you-win-screen');
+        const mazePauseModal = document.getElementById('pause-modal');
+        const mazeResumeBtn = document.getElementById('resume-btn');
+        const mazeQuitBtn = document.getElementById('quit-btn');
+
+        let gameState = {};
+        let availableMazeQuestions = [];
+        let mazeGameKeyListener = null;
+
+        function initializeMazeGameState(difficulty) {
+            const settings = mazeConfig.DIFFICULTY_SETTINGS[difficulty];
+            Object.assign(gameState, {
+                difficulty,
+                size: settings.size,
+                correctCount: 0, incorrectCount: 0,
+                isAnsweringQuestion: false, isGameOver: false, isPaused: false, isMovingVisual: false,
+                playerX: 0, playerY: 0,
+                previousPlayerX: 0, previousPlayerY: 0,
+                cells: [],
+                timerInterval: null, timeLeft: settings.time,
+                highScore: Utils.getHighScore('mazeHighScore')
+            });
+            mazeHighScoreSpan.textContent = gameState.highScore;
+        }
+
+        function updateMazeStats() {
+            mazeCorrectCountSpan.textContent = gameState.correctCount;
+            mazeIncorrectCountSpan.textContent = gameState.incorrectCount;
+        }
+
+        function initializeMazeCells() {
+            const fragment = document.createDocumentFragment();
+            const settings = mazeConfig.DIFFICULTY_SETTINGS[gameState.difficulty];
+            document.documentElement.style.setProperty('--cell-size', `${settings.cellScale}px`);
+            mazeBoard.style.gridTemplateColumns = `repeat(${gameState.size}, 1fr)`;
+
+            gameState.cells = [];
+            for (let y = 0; y < gameState.size; y++) {
+                gameState.cells[y] = [];
+                for (let x = 0; x < gameState.size; x++) {
+                    const cellDiv = document.createElement('div');
+                    cellDiv.classList.add('cell');
+                    fragment.appendChild(cellDiv);
+                    gameState.cells[y][x] = {
+                        type: mazeConfig.TYPES.OBSTACLE,
+                        element: cellDiv,
+                        answered: false,
+                        questionId: null,
+                        visited: false
+                    };
+                }
+            }
+            mazeBoard.innerHTML = '';
+            mazeBoard.appendChild(fragment);
+            mazeBoard.appendChild(playerIcon);
+
+            const cell = mazeBoard.querySelector('.cell');
+            if (cell) {
+                const style = window.getComputedStyle(cell);
+                gameState.metrics = { cellSize: parseFloat(style.width), gap: parseFloat(window.getComputedStyle(mazeBoard).gap), boardPadding: 10 };
+            }
+        }
+
+        function updateMazeBoard() {
+            for (let y = 0; y < gameState.size; y++) {
+                for (let x = 0; x < gameState.size; x++) {
+                    const cell = gameState.cells[y][x];
+                    cell.element.className = 'cell ' + cell.type;
+                    cell.element.textContent = (cell.type === mazeConfig.TYPES.QUESTION && !cell.answered) ? '?' : '';
+                }
+            }
+        }
+
+        function movePlayerIcon() {
+            if (!gameState.metrics) return;
+            const { cellSize, gap, boardPadding } = gameState.metrics;
+            const left = boardPadding + gameState.playerX * (cellSize + gap) + (cellSize / 2);
+            const top = boardPadding + gameState.playerY * (cellSize + gap) + (cellSize / 2);
+            playerIcon.style.transform = `translate(${left}px, ${top}px) translate(-50%, -50%)`;
+            setTimeout(() => { gameState.isMovingVisual = false; }, mazeConfig.ANIMATION_TIMES.MOVE_PLAYER);
+        }
+
+        function createMazeRecursiveBacktracker() {
+            for (let y = 0; y < gameState.size; y++) {
+                for (let x = 0; x < gameState.size; x++) {
+                    Object.assign(gameState.cells[y][x], { type: mazeConfig.TYPES.OBSTACLE, visited: false });
+                }
+            }
+
+            const stack = [];
+            let currentX = 0, currentY = 0;
+            gameState.cells[currentY][currentX].visited = true;
+            gameState.cells[currentY][currentX].type = mazeConfig.TYPES.WALKABLE;
+            stack.push({ x: currentX, y: currentY });
+
+            while (stack.length > 0) {
+                const current = stack[stack.length - 1];
+                const neighbors = [];
+                const directions = [[0, -2], [0, 2], [-2, 0], [2, 0]];
+                Utils.shuffleArray(directions);
+
+                for (const [dx, dy] of directions) {
+                    const nx = current.x + dx, ny = current.y + dy;
+                    if (nx >= 0 && nx < gameState.size && ny >= 0 && ny < gameState.size && !gameState.cells[ny][nx].visited) {
+                        neighbors.push({ x: nx, y: ny, wallX: current.x + dx / 2, wallY: current.y + dy / 2 });
+                    }
+                }
+
+                if (neighbors.length > 0) {
+                    const next = neighbors[0];
+                    gameState.cells[next.wallY][next.wallX].type = mazeConfig.TYPES.WALKABLE;
+                    gameState.cells[next.wallY][next.wallX].visited = true;
+                    gameState.cells[next.y][next.x].type = mazeConfig.TYPES.WALKABLE;
+                    gameState.cells[next.y][next.x].visited = true;
+                    stack.push(next);
+                } else {
+                    stack.pop();
+                }
+            }
+            
+            addBraiding(mazeConfig.DIFFICULTY_SETTINGS[gameState.difficulty].braidFactor);
+            addDeadEndBranches(mazeConfig.DIFFICULTY_SETTINGS[gameState.difficulty].branchFactor);
+            placeSpecialCells(); 
+            
+            gameState.cells[0][0].type = mazeConfig.TYPES.WALKABLE;
+            if (gameState.cells[0][1].type === mazeConfig.TYPES.OBSTACLE && gameState.cells[1][0].type === mazeConfig.TYPES.OBSTACLE) {
+                 if(Math.random() > 0.5) gameState.cells[0][1].type = mazeConfig.TYPES.WALKABLE;
+                 else gameState.cells[1][0].type = mazeConfig.TYPES.WALKABLE;
+            }
+        }
+        
+        function addBraiding(braidFactor = 0.2) {
+            if (braidFactor <= 0) return;
+            const deadEnds = [];
+            for (let y = 1; y < gameState.size - 1; y++) {
+                for (let x = 1; x < gameState.size - 1; x++) {
+                    if (gameState.cells[y][x].type === mazeConfig.TYPES.WALKABLE) {
+                        let walkableNeighbors = 0;
+                        if (gameState.cells[y-1][x].type === mazeConfig.TYPES.WALKABLE) walkableNeighbors++;
+                        if (gameState.cells[y+1][x].type === mazeConfig.TYPES.WALKABLE) walkableNeighbors++;
+                        if (gameState.cells[y][x-1].type === mazeConfig.TYPES.WALKABLE) walkableNeighbors++;
+                        if (gameState.cells[y][x+1].type === mazeConfig.TYPES.WALKABLE) walkableNeighbors++;
+                        
+                        if (walkableNeighbors === 1) {
+                            deadEnds.push({ x, y });
+                        }
+                    }
+                }
+            }
+
+            Utils.shuffleArray(deadEnds);
+            const numToBraid = Math.floor(deadEnds.length * braidFactor);
+
+            for (let i = 0; i < numToBraid; i++) {
+                const cell = deadEnds[i];
+                const walls = [];
+                if (cell.y > 0 && gameState.cells[cell.y-1][cell.x].type === mazeConfig.TYPES.OBSTACLE) walls.push({x: cell.x, y: cell.y-1});
+                if (cell.y < gameState.size - 1 && gameState.cells[cell.y+1][cell.x].type === mazeConfig.TYPES.OBSTACLE) walls.push({x: cell.x, y: cell.y+1});
+                if (cell.x > 0 && gameState.cells[cell.y][cell.x-1].type === mazeConfig.TYPES.OBSTACLE) walls.push({x: cell.x-1, y: cell.y});
+                if (cell.x < gameState.size - 1 && gameState.cells[cell.y][cell.x+1].type === mazeConfig.TYPES.OBSTACLE) walls.push({x: cell.x+1, y: cell.y});
+                
+                if (walls.length > 0) {
+                    const wallToBreak = walls[Math.floor(Math.random() * walls.length)];
+                    gameState.cells[wallToBreak.y][wallToBreak.x].type = mazeConfig.TYPES.WALKABLE;
+                }
+            }
+        }
+        
+        function addDeadEndBranches(branchFactor = 0.1) {
+            if (branchFactor <= 0) return;
+            const candidates = [];
+            for (let y = 1; y < gameState.size - 1; y++) {
+                for (let x = 1; x < gameState.size - 1; x++) {
+                    if (gameState.cells[y][x].type !== mazeConfig.TYPES.OBSTACLE) continue;
+
+                    let obstacleNeighbors = 0;
+                    if (gameState.cells[y-1][x].type === mazeConfig.TYPES.OBSTACLE) obstacleNeighbors++;
+                    if (gameState.cells[y+1][x].type === mazeConfig.TYPES.OBSTACLE) obstacleNeighbors++;
+                    if (gameState.cells[y][x-1].type === mazeConfig.TYPES.OBSTACLE) obstacleNeighbors++;
+                    if (gameState.cells[y][x+1].type === mazeConfig.TYPES.OBSTACLE) obstacleNeighbors++;
+                    
+                    if (obstacleNeighbors >= 3) {
+                        candidates.push({ x, y });
+                    }
+                }
+            }
+
+            Utils.shuffleArray(candidates);
+            
+            const numToConvert = Math.floor(candidates.length * branchFactor);
+            for (let i = 0; i < numToConvert; i++) {
+                const cell = candidates[i];
+                gameState.cells[cell.y][cell.x].type = mazeConfig.TYPES.WALKABLE;
+            }
+        }
+
+        function placeSpecialCells() {
+            const distances = Array(gameState.size).fill(null).map(() => Array(gameState.size).fill(-1));
+            const queue = [{ x: 0, y: 0 }];
+            distances[0][0] = 0;
+            
+            let maxDist = 0;
+            let farthestCell = { x: 0, y: 0 };
+            
+            let head = 0;
+            while(head < queue.length){
+                const {x, y} = queue[head++];
+                
+                for(const [dx, dy] of [[0,1], [0,-1], [1,0], [-1,0]]) {
+                    const nx = x + dx, ny = y + dy;
+                    if (nx >= 0 && ny >= 0 && nx < gameState.size && ny < gameState.size && 
+                        gameState.cells[ny][nx].type !== mazeConfig.TYPES.OBSTACLE && distances[ny][nx] === -1) 
+                    {
+                        distances[ny][nx] = distances[y][x] + 1;
+                        if (distances[ny][nx] > maxDist) {
+                            maxDist = distances[ny][nx];
+                            farthestCell = { x: nx, y: ny };
+                        }
+                        queue.push({ x: nx, y: ny });
+                    }
+                }
+            }
+            if (farthestCell) {
+                 gameState.cells[farthestCell.y][farthestCell.x].type = mazeConfig.TYPES.GOAL;
+            }
+
+            const potentialSpecialCells = [];
+            for (let y = 0; y < gameState.size; y++) {
+                for (let x = 0; x < gameState.size; x++) {
+                    if (gameState.cells[y][x].type === mazeConfig.TYPES.WALKABLE && !(x === 0 && y === 0)) {
+                        potentialSpecialCells.push({ x, y });
+                    }
+                }
+            }
+            Utils.shuffleArray(potentialSpecialCells);
+            
+            const settings = mazeConfig.DIFFICULTY_SETTINGS[gameState.difficulty];
+            const questionsToPlace = settings.questionsToPlace;
+            const minQuestionDist = settings.minQuestionDist;
+            const questionCells = [];
+
+            for (const potential of potentialSpecialCells) {
+                if (questionCells.length >= questionsToPlace) break;
+
+                let isFarEnough = true;
+                for (const placed of questionCells) {
+                    const dist = Math.abs(potential.x - placed.x) + Math.abs(potential.y - placed.y);
+                    if (dist < minQuestionDist) {
+                        isFarEnough = false;
+                        break;
+                    }
+                }
+                if (isFarEnough) {
+                    questionCells.push(potential);
+                }
+            }
+
+            if (questionCells.length < questionsToPlace) {
+                const placedCoords = new Set(questionCells.map(c => `${c.x},${c.y}`));
+                for (const potential of potentialSpecialCells) {
+                    if (questionCells.length >= questionsToPlace) break;
+                    if (!placedCoords.has(`${potential.x},${potential.y}`)) {
+                        questionCells.push(potential);
+                    }
+                }
+            }
+            
+            const filteredQuestions = mazeConfig.QUESTIONS.filter(q => q.category === gameState.difficulty || q.category === 'easy');
+            availableMazeQuestions = Utils.shuffleArray([...filteredQuestions]);
+
+            for (let i = 0; i < Math.min(questionCells.length, availableMazeQuestions.length); i++) {
+                const { x, y } = questionCells[i];
+                gameState.cells[y][x].type = mazeConfig.TYPES.QUESTION;
+                gameState.cells[y][x].questionId = i;
+            }
+        }
+        
+        function startMazeTimer() {
+            clearInterval(gameState.timerInterval);
+            gameState.timeLeft = mazeConfig.DIFFICULTY_SETTINGS[gameState.difficulty].time;
+            mazeTimerFill.style.width = '100%';
+            mazeTimerLabel.textContent = Math.ceil(gameState.timeLeft / 1000);
+
+            gameState.timerInterval = setInterval(() => {
+                if (gameState.isPaused || gameState.isGameOver || !gameState.isAnsweringQuestion) return;
+                gameState.timeLeft -= 1000;
+                if (gameState.timeLeft <= 0) {
+                    clearInterval(gameState.timerInterval);
+                    handleMazeAnswer(false); 
+                    return;
+                }
+                const percent = gameState.timeLeft / mazeConfig.DIFFICULTY_SETTINGS[gameState.difficulty].time;
+                mazeTimerFill.style.width = `${percent * 100}%`;
+                mazeTimerLabel.textContent = Math.ceil(gameState.timeLeft / 1000);
+            }, 1000);
+        }
+
+        function stopMazeTimer() {
+            clearInterval(gameState.timerInterval);
+            mazeTimerFill.style.width = '0%';
+            mazeTimerLabel.textContent = '';
+        }
+
+        function handleMazeAnswer(isCorrect, selectedButton) {
+            stopMazeTimer();
+            const currentCell = gameState.cells[gameState.playerY][gameState.playerX];
+            Array.from(mazeOptionsDiv.children).forEach(btn => btn.disabled = true);
+            
+            if (isCorrect) {
+                selectedButton.classList.add('correct');
+                gameState.correctCount++;
+                currentCell.answered = true;
+                currentCell.type = mazeConfig.TYPES.WALKABLE;
+            } else {
+                if(selectedButton) selectedButton.classList.add('incorrect');
+                const q = availableMazeQuestions[currentCell.questionId];
+                const correctButton = Array.from(mazeOptionsDiv.children)[q.correct];
+                if (correctButton) correctButton.classList.add('correct');
+                
+                gameState.incorrectCount++;
+                currentCell.type = mazeConfig.TYPES.OBSTACLE;
+                
+                gameState.playerX = gameState.previousPlayerX;
+                gameState.playerY = gameState.previousPlayerY;
+                movePlayerIcon();
+                
+                Utils.showNotification("Sai rồi!", "Ô này đã bị chặn. Bạn đã bị đẩy lùi!");
+            }
+            updateMazeStats();
+            
+            setTimeout(() => {
+                gameState.isAnsweringQuestion = false;
+                mazeQuestionText.textContent = 'Di chuyển đến ô có dấu "?" để nhận câu hỏi';
+                mazeOptionsDiv.innerHTML = '';
+                updateMazeBoard();
+                checkMazeLosingCondition();
+            }, mazeConfig.ANIMATION_TIMES.FEEDBACK_DURATION);
+        }
+
+        function showMazeQuestion() {
+            const currentCell = gameState.cells[gameState.playerY][gameState.playerX];
+            if (currentCell.type !== mazeConfig.TYPES.QUESTION || currentCell.answered) return;
+            
+            gameState.isAnsweringQuestion = true;
+            const q = availableMazeQuestions[currentCell.questionId];
+            mazeQuestionText.textContent = q.q;
+            mazeOptionsDiv.innerHTML = '';
+            q.options.forEach((opt, i) => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.innerHTML = opt;
+                btn.addEventListener('click', () => handleMazeAnswer(i === q.correct, btn));
+                mazeOptionsDiv.appendChild(btn);
+            });
+
+            if (typeof MathJax !== 'undefined') MathJax.typesetPromise([mazeQuestionText, mazeOptionsDiv]);
+            startMazeTimer();
+        }
+        
+        function checkMazeLosingCondition() {
+            if (gameState.isGameOver) return;
+            if (!hasPathToMazeGoal(gameState.playerX, gameState.playerY)) {
+                endMazeGame("Bạn đã thua! Không còn đường nào để đến đích.", false);
+                return;
+            }
+            const remainingQuestions = countRemainingMazeQuestions();
+            const requiredAnswers = mazeConfig.DIFFICULTY_SETTINGS[gameState.difficulty].requiredCorrectAnswers;
+            if (gameState.correctCount + remainingQuestions < requiredAnswers) {
+                endMazeGame(`Bạn đã thua! Không còn đủ câu hỏi để đạt mục tiêu ${requiredAnswers} câu đúng.`, false);
+            }
+        }
+
+        function countRemainingMazeQuestions() {
+            let count = 0;
+            for (let y = 0; y < gameState.size; y++) {
+                for (let x = 0; x < gameState.size; x++) {
+                    if (gameState.cells[y][x].type === mazeConfig.TYPES.QUESTION && !gameState.cells[y][x].answered) {
+                        count++;
+                    }
+                }
+            }
+            return count;
+        }
+        
+        function hasPathToMazeGoal(startX, startY) {
+            const queue = [{ x: startX, y: startY }];
+            const visited = new Set([`${startX},${startY}`]);
+            
+            while (queue.length > 0) {
+                const { x, y } = queue.shift();
+                if (gameState.cells[y][x].type === mazeConfig.TYPES.GOAL) return true;
+
+                for (const [dx, dy] of [[0,1],[0,-1],[1,0],[-1,0]]) {
+                    const newX = x + dx, newY = y + dy;
+                    if (newX >= 0 && newY >= 0 && newX < gameState.size && newY < gameState.size) {
+                        const cell = gameState.cells[newY][newX];
+                        const canPass = cell.type !== mazeConfig.TYPES.OBSTACLE;
+                        if (canPass && !visited.has(`${newX},${newY}`)) {
+                            visited.add(`${newX},${newY}`);
+                            queue.push({ x: newX, y: newY });
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        function moveMazePlayer(dx, dy) {
+            if (gameState.isAnsweringQuestion || gameState.isGameOver || gameState.isPaused || gameState.isMovingVisual) return;
+            
+            const newX = gameState.playerX + dx, newY = gameState.playerY + dy;
+            if (newX < 0 || newY < 0 || newX >= gameState.size || newY >= gameState.size) return;
+            
+            const targetCell = gameState.cells[newY][newX];
+            if (targetCell.type === mazeConfig.TYPES.OBSTACLE) return;
+            
+            gameState.isMovingVisual = true;
+            gameState.previousPlayerX = gameState.playerX;
+            gameState.previousPlayerY = gameState.playerY;
+            gameState.playerX = newX;
+            gameState.playerY = newY;
+            movePlayerIcon();
+
+            setTimeout(() => {
+                if (targetCell.type === mazeConfig.TYPES.GOAL) {
+                    const requiredAnswers = mazeConfig.DIFFICULTY_SETTINGS[gameState.difficulty].requiredCorrectAnswers;
+                    if (gameState.correctCount >= requiredAnswers) {
+                        endMazeGame(`Bạn đã chiến thắng!`, true);
+                    } else {
+                        endMazeGame(`Bạn cần trả lời đúng ${requiredAnswers} câu. Bạn đã thua.`, false);
+                    }
+                } else if (targetCell.type === mazeConfig.TYPES.QUESTION && !targetCell.answered) {
+                    showMazeQuestion();
+                }
+                checkMazeLosingCondition();
+            }, mazeConfig.ANIMATION_TIMES.MOVE_PLAYER);
+        }
+
+        function endMazeGame(message, isWin) {
+            if(gameState.isGameOver) return;
+            gameState.isGameOver = true;
+            stopMazeTimer();
+            if (isWin) {
+                Utils.saveHighScore('mazeHighScore', gameState.correctCount);
+                document.getElementById('you-win-message').textContent = message;
+                mazeYouWinScreen.classList.add('active');
+            } else {
+                document.getElementById('game-over-message').textContent = message;
+                mazeGameOverScreen.classList.add('active');
+            }
+            if (mazeGameKeyListener) document.removeEventListener('keydown', mazeGameKeyListener);
+        }
+        
+        function setPaused(isPaused) {
+            gameState.isPaused = isPaused;
+        }
+
+        function pauseMazeGame() { setPaused(true); mazePauseModal.classList.add('active'); }
+        function resumeMazeGame() { setPaused(false); mazePauseModal.classList.remove('active'); }
+
+        function quitGame() {
+            stopMazeTimer();
+            if (mazeGameKeyListener) {
+                document.removeEventListener('keydown', mazeGameKeyListener);
+                mazeGameKeyListener = null;
+            }
+            gameState.isGameOver = true;
+            Utils.showScreen('maze-difficulty-screen');
+        }
+
+        function start(difficulty) {
+            initializeMazeGameState(difficulty);
+            resetMazeGame();
+
+            if (mazeGameKeyListener) document.removeEventListener('keydown', mazeGameKeyListener);
+            
+            mazeGameKeyListener = (e) => {
+                if (gameState.isPaused || gameState.isGameOver || gameState.isAnsweringQuestion) return;
+                const keyMap = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] };
+                if(keyMap[e.key]) { e.preventDefault(); moveMazePlayer(...keyMap[e.key]); }
+            };
+            document.addEventListener('keydown', mazeGameKeyListener);
+
+            mazeResumeBtn.onclick = resumeMazeGame;
+            
+            mazeQuitBtn.onclick = () => {
+                Utils.showScreen('maze-difficulty-screen');
+                if (mazeGameKeyListener) document.removeEventListener('keydown', mazeGameKeyListener);
+                stopMazeTimer();
+            };
+
+            document.addEventListener('keydown', (e) => {
+                const isMazeActive = document.getElementById('maze-game-screen').classList.contains('active');
+                if (e.key === 'Escape' && isMazeActive && !gameState.isGameOver && !document.getElementById('notification-overlay').style.display) {
+                    if (gameState.isPaused) resumeMazeGame(); else pauseMazeGame();
+                }
+            });
+        }
+
+        function resetMazeGame() {
+            updateMazeStats();
+            initializeMazeCells();
+            createMazeRecursiveBacktracker();
+            movePlayerIcon();
+            mazeQuestionText.textContent = 'Di chuyển đến ô có dấu "?" để nhận câu hỏi';
+            mazeOptionsDiv.innerHTML = '';
+            stopMazeTimer();
+            mazeGameOverScreen.classList.remove('active');
+            mazeYouWinScreen.classList.remove('active');
+            updateMazeBoard();
+        }
+
+        return { start, reset: resetMazeGame, setPaused: setPaused, quit: quitGame };
+    })();
+
+    /* --- js/game.js --- */
+    const Game = (function() {
+        function initializeEventListeners() {
+            document.body.addEventListener('click', (event) => {
+                const target = event.target.closest('[data-action]');
+                if (!target) return;
+                const action = target.dataset.action;
+                const isMazeActive = document.getElementById('maze-game-screen').classList.contains('active');
+
+                switch (action) {
+                    case 'start-maze':
+                        Utils.showScreen('maze-game-screen');
+                        Maze.start(target.dataset.difficulty);
+                        break;
+                    case 'back-to-selection':
+                        Utils.showScreen('maze-difficulty-screen');
+                        break;
+                    case 'close-notification':
+                        if (isMazeActive) {
+                            Maze.setPaused(false);
+                        }
+                        Utils.closeNotification();
+                        break;
+                    case 'show-instructions':
+                        if (isMazeActive) {
+                            Maze.setPaused(true);
+                        }
+                        const settings = GAME_CONFIG.MAZE.DIFFICULTY_SETTINGS;
+                        Utils.showNotification(
+                            '📜 Hướng Dẫn Chơi Mê Cung',
+                            `<ul style="text-align: left; padding-left: 20px; font-size: 16px; line-height: 1.8;">
+                                <li><strong>Mục tiêu:</strong> Đến được ô đích màu trắng để qua màn. Vị trí đích giờ đây sẽ nằm ở cuối con đường khó nhất!</li>
+                                <li><strong>Di chuyển:</strong> Sử dụng các phím mũi tên (↑, ↓, ←, →) trên bàn phím.</li>
+                                <li><strong>Ô Câu Hỏi (?):</strong> Khi di chuyển vào ô có dấu '?', bạn sẽ phải trả lời một câu hỏi trắc nghiệm.
+                                    <ul style="padding-left: 25px; margin-top: 5px;">
+                                        <li><strong>Trả lời đúng:</strong> Ô '?' sẽ biến thành đường đi bình thường.</li>
+                                        <li><strong>Trả lời sai:</strong> Ô '?' sẽ biến thành tường đá, chặn đường đi vĩnh viễn và bạn bị đẩy lùi về ô cũ.</li>
+                                    </ul>
+                                </li>
+                                <li><strong>Điều kiện thắng:</strong> Bạn phải đến được ô đích <strong>VÀ</strong> trả lời đúng số câu hỏi tối thiểu:
+                                    <ul style="padding-left: 25px; margin-top: 5px;">
+                                        <li><strong>Dễ:</strong> ${settings.easy.requiredCorrectAnswers} câu</li>
+                                        <li><strong>Trung bình:</strong> ${settings.medium.requiredCorrectAnswers} câu</li>
+                                        <li><strong>Khó:</strong> ${settings.hard.requiredCorrectAnswers} câu</li>
+                                        <li><strong>Thảm Họa:</strong> ${settings.catastrophe.requiredCorrectAnswers} câu</li>
+                                    </ul>
+                                </li>
+                                <li><strong>Thua cuộc:</strong> Bạn sẽ thua nếu không còn đường đến đích hoặc không thể đạt đủ số câu đúng yêu cầu.</li>
+                                <li><strong>Mê cung:</strong> Tùy vào độ khó, mê cung sẽ có nhiều vòng lặp hoặc nhiều ngõ cụt. Hãy cẩn thận!</li>
+                            </ul>`
+                        );
+                        break;
+                    
+                    case 'confirm-quit':
+                        Maze.setPaused(true); 
+                        Utils.showNotification(
+                            'Xác nhận thoát',
+                            'Trò chơi chưa kết thúc, bạn chắc chắn muốn thoát không?',
+                            [
+                                { text: 'Có', className: 'confirm-yes', action: () => Maze.quit() },
+                                { text: 'Không', className: 'confirm-no', action: () => Maze.setPaused(false) }
+                            ]
+                        );
+                        break;
+                }
+            });
+        }
+        
+        function mainInit() { initializeEventListeners(); }
+        return { init: mainInit, showScreen: Utils.showScreen };
+    })();
+
+    document.addEventListener('DOMContentLoaded', Game.init);
+</script>
+</body>
+</html>

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mô hình 3D: Giao tuyến của (SAD) và (SBC)</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Inter', sans-serif; background-color: #f0f0f0; }
+        canvas { display: block; width: 100%; height: 100vh; }
+        .label {
+            position: absolute;
+            font-size: 18px;
+            color: #000000;
+            font-weight: bold;
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            text-shadow: 0px 0px 4px #FFFFFF, 0px 0px 4px #FFFFFF, 0px 0px 4px #FFFFFF;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+    <script>
+        let scene, camera, renderer, controls;
+        let labels = {};
+
+        // --- 1. Define Coordinates ---
+        // Đặt I (giao điểm AD và BC) tại gốc tọa độ (0,0,0)
+        const I = new THREE.Vector3(0, 0, 0);
+        // Đặt đỉnh S trên trục y
+        const S = new THREE.Vector3(0, 15, 0);
+        // Các đỉnh của hình thang ABCD
+        const D = new THREE.Vector3(0, 0, 5);
+        const C = new THREE.Vector3(4, 0, 5);
+        const A = new THREE.Vector3(0, 0, 10);
+        const B = new THREE.Vector3(8, 0, 10);
+
+        // --- 2. Materials ---
+        const pointMaterial = new THREE.MeshBasicMaterial({ color: 0x333333 });
+        const occlusionMaterial = new THREE.MeshPhongMaterial({ color: 0xFFFFFF, side: THREE.DoubleSide, colorWrite: false, depthWrite: true });
+        const hiddenDashedLineMaterial = new THREE.LineDashedMaterial({ color: 0x444444, linewidth: 5, dashSize: 1, gapSize: 1, depthWrite: false, depthFunc: THREE.GreaterEqualDepth });
+        const visibleSolidLineMaterial = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 7, depthFunc: THREE.LessEqualDepth });
+        const visibleBoldLineMaterial = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 15, depthFunc: THREE.LessEqualDepth });
+
+        // --- Helper Functions ---
+        function addLabel(position, text) {
+            const element = document.createElement('div');
+            element.className = 'label';
+            element.textContent = text;
+            document.body.appendChild(element);
+            labels[text] = { element: element, position: position };
+        }
+
+        function createPointSphere(position, labelText) {
+            const geometry = new THREE.SphereGeometry(0.3, 16, 16);
+            const sphere = new THREE.Mesh(geometry, pointMaterial);
+            sphere.position.copy(position);
+            scene.add(sphere);
+            addLabel(position, labelText);
+        }
+
+        function addEdge(v1, v2, isBold = false) {
+            const points = [v1, v2];
+            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+            const dashedLine = new THREE.Line(geometry, hiddenDashedLineMaterial);
+            dashedLine.computeLineDistances();
+            dashedLine.renderOrder = 1;
+            scene.add(dashedLine);
+            const solidMaterial = isBold ? visibleBoldLineMaterial : visibleSolidLineMaterial;
+            const solidLine = new THREE.Line(geometry, solidMaterial);
+            solidLine.renderOrder = 2;
+            scene.add(solidLine);
+        }
+        
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xffffff);
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(12, 12, 18);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.target.set(3, 6, 5);
+            scene.add(new THREE.AmbientLight(0xcccccc));
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(5, 10, 7.5);
+            scene.add(directionalLight);
+
+            // --- Occlusion Geometry (mặt phẳng vô hình) ---
+            const facesGeometry = new THREE.BufferGeometry();
+            const vertices = new Float32Array([
+                // Mặt đáy ABCD (chia làm 2 tam giác)
+                A.x, A.y, A.z,   B.x, B.y, B.z,   C.x, C.y, C.z,
+                A.x, A.y, A.z,   C.x, C.y, C.z,   D.x, D.y, D.z,
+                // Các mặt bên
+                S.x, S.y, S.z,   A.x, A.y, A.z,   B.x, B.y, B.z,
+                S.x, S.y, S.z,   B.x, B.y, B.z,   C.x, C.y, C.z,
+                S.x, S.y, S.z,   C.x, C.y, C.z,   D.x, D.y, D.z,
+                S.x, S.y, S.z,   D.x, D.y, D.z,   A.x, A.y, A.z
+            ]);
+            facesGeometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+            facesGeometry.computeVertexNormals();
+            const occlusionMesh = new THREE.Mesh(facesGeometry, occlusionMaterial);
+            occlusionMesh.renderOrder = 0;
+            scene.add(occlusionMesh);
+
+            // --- Visible Geometry (điểm và đường) ---
+            createPointSphere(S, 'S');
+            createPointSphere(A, 'A');
+            createPointSphere(B, 'B');
+            createPointSphere(C, 'C');
+            createPointSphere(D, 'D');
+            createPointSphere(I, 'I');
+
+            // Giao tuyến SI được tô đậm
+            addEdge(S, I, true);
+            
+            // Các cạnh của hình chóp
+            addEdge(S, A, false);
+            addEdge(S, B, false);
+            addEdge(S, C, false);
+            addEdge(S, D, false);
+            
+            // Các cạnh đáy và đường kéo dài tới I
+            addEdge(A, B, false);
+            addEdge(C, D, false);
+            addEdge(A, I, false); // Chứa AD
+            addEdge(B, I, false); // Chứa BC
+        }
+
+        function updateLabels() {
+            for (const key in labels) {
+                const label = labels[key];
+                const vector = label.position.clone().project(camera);
+                const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+                const y = (-vector.y * 0.5 + 0.5) * window.innerHeight;
+                label.element.style.left = `${x}px`;
+                label.element.style.top = `${y}px`;
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            updateLabels();
+            renderer.render(scene, camera);
+        }
+        
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        init();
+        animate();
+        window.addEventListener('resize', onWindowResize);
+    </script>
+</body>
+</html>

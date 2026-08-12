@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Giao tuyến của (AB'C') và (A'BC) - Tên điểm rõ nét</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: Inter, sans-serif; background-color: #f0f0f0; }
+        #container { width: 100vw; height: 100vh; display: block; }
+        
+        /* --- THAY ĐỔI ĐỂ TÊN ĐIỂM DỄ NHÌN HƠN --- */
+        .label {
+            color: #000000;
+            font-weight: 700;
+            font-size: 16px; 
+            /* Thêm nền trắng mờ để làm nổi bật chữ */
+            background-color: rgba(255, 255, 255, 0.8); 
+            /* Thêm khoảng đệm cho đẹp mắt */
+            padding: 2px 6px;
+            /* Bo tròn các góc */
+            border-radius: 5px;
+            pointer-events: none;
+        }
+
+        .controls-container {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        .control-button {
+            padding: 12px 25px; font-size: 16px; font-weight: 600; color: #fff;
+            background: linear-gradient(145deg, #007bff, #0056b3);
+            border: none; border-radius: 10px; cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
+            transition: all 0.3s ease; outline: none;
+        }
+        .control-button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0, 123, 255, 0.4); }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+    <div class="controls-container">
+        <button id="resetButton" class="control-button">Đặt lại</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/renderers/CSS2DRenderer.js"></script>
+
+    <script>
+        class PrismIntersectionApp {
+            constructor() {
+                this.container = document.getElementById('container');
+                this.initialCameraConfig = {};
+                
+                // --- MATERIALS ---
+                this.materials = {
+                    faces: new THREE.MeshPhongMaterial({ 
+                        color: 0xFFFFFF, 
+                        side: THREE.DoubleSide 
+                    }),
+                    points: new THREE.MeshBasicMaterial({ color: 0x555555 }),
+                    hiddenDashed: new THREE.LineDashedMaterial({
+                        color: 0x444444,
+                        dashSize: 0.5,
+                        gapSize: 0.25,
+                        depthTest: true,
+                        depthWrite: false,
+                        depthFunc: THREE.GreaterEqualDepth,
+                    }),
+                    visibleSolid: new THREE.LineBasicMaterial({
+                        color: 0x000000,
+                        depthTest: true,
+                        depthWrite: true,
+                        depthFunc: THREE.LessEqualDepth,
+                    }),
+                    visibleBold: new THREE.LineBasicMaterial({
+                        color: 0xFF0000,
+                        linewidth: 2,
+                        depthTest: true,
+                        depthWrite: true,
+                        depthFunc: THREE.LessEqualDepth,
+                    })
+                };
+
+                this.init();
+            }
+
+            init() {
+                this.setupScene();
+                this.setupRenderers();
+                this.setupLights();
+                this.createGeometry();
+                this.setupControls();
+                this.fitCameraToScene();
+                this.addEventListeners();
+                this.animate();
+            }
+
+            setupScene() {
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0xf0f0f0);
+                this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 5000);
+            }
+
+            setupRenderers() {
+                this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                this.renderer.setPixelRatio(window.devicePixelRatio);
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.container.appendChild(this.renderer.domElement);
+
+                this.labelRenderer = new THREE.CSS2DRenderer();
+                this.labelRenderer.setSize(window.innerWidth, window.innerHeight);
+                this.labelRenderer.domElement.style.position = 'absolute';
+                this.labelRenderer.domElement.style.top = '0px';
+                this.labelRenderer.domElement.style.pointerEvents = 'none';
+                this.container.appendChild(this.labelRenderer.domElement);
+            }
+
+            setupLights() {
+                this.scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1.5));
+                const dirLight = new THREE.DirectionalLight(0xffffff, 2.5);
+                dirLight.position.set(1, 1, 1);
+                this.scene.add(dirLight);
+            }
+
+            createGeometry() {
+                const vertices = {
+                    A: new THREE.Vector3(-4, -4, 4), B: new THREE.Vector3(4, -4, 4), C: new THREE.Vector3(0, -4, -4),
+                    A_prime: new THREE.Vector3(-4, 4, 4), B_prime: new THREE.Vector3(4, 4, 4), C_prime: new THREE.Vector3(0, 4, -4),
+                };
+
+                // Create opaque faces for occlusion
+                const facesGeometry = new THREE.BufferGeometry();
+                const positions = new Float32Array([
+                    ...vertices.A.toArray(), ...vertices.B.toArray(), ...vertices.C.toArray(),
+                    ...vertices.A_prime.toArray(), ...vertices.C_prime.toArray(), ...vertices.B_prime.toArray(),
+                    ...vertices.A.toArray(), ...vertices.A_prime.toArray(), ...vertices.B.toArray(),
+                    ...vertices.B.toArray(), ...vertices.A_prime.toArray(), ...vertices.B_prime.toArray(),
+                    ...vertices.B.toArray(), ...vertices.B_prime.toArray(), ...vertices.C.toArray(),
+                    ...vertices.C.toArray(), ...vertices.B_prime.toArray(), ...vertices.C_prime.toArray(),
+                    ...vertices.C.toArray(), ...vertices.C_prime.toArray(), ...vertices.A.toArray(),
+                    ...vertices.A.toArray(), ...vertices.C_prime.toArray(), ...vertices.A_prime.toArray(),
+                ]);
+                facesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                facesGeometry.computeVertexNormals();
+                const prismMesh = new THREE.Mesh(facesGeometry, this.materials.faces);
+                prismMesh.renderOrder = -1; // Draw faces first
+                this.scene.add(prismMesh);
+
+                // Create points and labels
+                this.createPoint(vertices.A, 'A'); this.createPoint(vertices.B, 'B'); this.createPoint(vertices.C, 'C');
+                this.createPoint(vertices.A_prime, "A'"); this.createPoint(vertices.B_prime, "B'"); this.createPoint(vertices.C_prime, "C'");
+                
+                // Create prism edges
+                this.createEdge(vertices.A, vertices.B); this.createEdge(vertices.B, vertices.C); this.createEdge(vertices.C, vertices.A);
+                this.createEdge(vertices.A_prime, vertices.B_prime); this.createEdge(vertices.B_prime, vertices.C_prime); this.createEdge(vertices.C_prime, vertices.A_prime);
+                this.createEdge(vertices.A, vertices.A_prime); this.createEdge(vertices.B, vertices.B_prime); this.createEdge(vertices.C, vertices.C_prime);
+                
+                // Create plane edges
+                this.createEdge(vertices.A, vertices.B_prime); this.createEdge(vertices.A, vertices.C_prime);
+                this.createEdge(vertices.A_prime, vertices.B); this.createEdge(vertices.A_prime, vertices.C);
+
+                // Calculate and draw intersection
+                const I_pos = new THREE.Vector3().addVectors(vertices.A_prime, vertices.B).multiplyScalar(0.5);
+                const J_pos = new THREE.Vector3().addVectors(vertices.A_prime, vertices.C).multiplyScalar(0.5);
+                vertices.I = I_pos; vertices.J = J_pos;
+                this.createPoint(vertices.I, 'I'); this.createPoint(vertices.J, 'J');
+                
+                // Draw intersection line with its own bold material
+                this.createEdge(vertices.I, vertices.J, this.materials.visibleBold);
+
+                this.prismCenter = new THREE.Vector3().addVectors(vertices.C, vertices.A_prime).multiplyScalar(0.5);
+            }
+            
+            createPoint(position, name) {
+                const geometry = new THREE.SphereGeometry(0.3, 16, 16);
+                const sphere = new THREE.Mesh(geometry, this.materials.points);
+                sphere.position.copy(position);
+                this.scene.add(sphere);
+
+                const div = document.createElement('div');
+                div.className = 'label';
+                div.textContent = name;
+                const label = new THREE.CSS2DObject(div);
+                label.position.copy(position);
+                this.scene.add(label);
+            }
+            
+            createEdge(v1, v2, customVisibleMaterial = null) {
+                const geometry = new THREE.BufferGeometry().setFromPoints([v1, v2]);
+                
+                // Pass 1: Dashed line (renders when behind an object)
+                const dashedLine = new THREE.Line(geometry, this.materials.hiddenDashed);
+                dashedLine.computeLineDistances();
+                dashedLine.renderOrder = 1;
+                this.scene.add(dashedLine);
+
+                // Pass 2: Solid line (renders when in front)
+                const solidMaterial = customVisibleMaterial || this.materials.visibleSolid;
+                const solidLine = new THREE.Line(geometry.clone(), solidMaterial);
+                solidLine.renderOrder = 2;
+                this.scene.add(solidLine);
+            }
+
+            setupControls() {
+                this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.enableDamping = true;
+                this.controls.dampingFactor = 0.05;
+                this.controls.target.copy(this.prismCenter);
+            }
+
+            fitCameraToScene() {
+                const box = new THREE.Box3().setFromObject(this.scene);
+                const center = box.getCenter(new THREE.Vector3());
+                const size = box.getSize(new THREE.Vector3());
+                const maxDim = Math.max(size.x, size.y, size.z);
+                const fov = this.camera.fov * (Math.PI / 180);
+                const cameraZ = Math.abs(maxDim / Math.tan(fov / 2)) * 0.7;
+
+                this.camera.position.set(center.x, center.y, center.z + cameraZ * 2);
+                this.initialCameraConfig = {
+                    position: this.camera.position.clone(),
+                    target: center.clone(),
+                };
+                this.resetCamera();
+            }
+
+            resetCamera() {
+                this.camera.position.copy(this.initialCameraConfig.position);
+                this.controls.target.copy(this.initialCameraConfig.target);
+            }
+
+            addEventListeners() {
+                window.addEventListener('resize', () => this.onWindowResize());
+                document.getElementById('resetButton').addEventListener('click', () => this.resetCamera());
+            }
+
+            onWindowResize() {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.labelRenderer.setSize(window.innerWidth, window.innerHeight);
+            }
+            
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                this.controls.update();
+                this.renderer.render(this.scene, this.camera);
+                this.labelRenderer.render(this.scene, this.camera);
+            }
+        }
+        new PrismIntersectionApp();
+    </script>
+</body>
+</html>

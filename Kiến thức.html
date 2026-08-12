@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ôn tập Toàn diện Hình học không gian</title>
+    
+    <script>
+    MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']]
+      },
+      svg: {
+        fontCache: 'global'
+      }
+    };
+    </script>
+    <script type="text/javascript" id="MathJax-script" async
+      src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js">
+    </script>
+    
+    <style>
+        :root {
+            --primary-color: #0d47a1;
+            --secondary-color: #1976d2;
+            --light-bg: #f8f9fa;
+            --dark-text: #212529;
+            --border-color: #dee2e6;
+            --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            --border-radius: 8px;
+            --transition-speed: 0.4s;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #eef2f5;
+            color: var(--dark-text);
+            line-height: 1.7;
+            margin: 0;
+            padding: 0;
+        }
+
+        .page-container {
+            display: flex;
+            max-width: 1300px;
+            margin: 20px auto;
+            background-color: #fff;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            min-height: calc(100vh - 40px);
+        }
+        
+        .sidebar {
+            width: 320px;
+            flex-shrink: 0;
+            background-color: var(--light-bg);
+            padding: 20px;
+            border-right: 1px solid var(--border-color);
+            border-radius: var(--border-radius) 0 0 var(--border-radius);
+            overflow-y: auto;
+        }
+        
+        .sidebar .menu-title {
+            font-size: 1.3em;
+            color: var(--primary-color);
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+        
+        .home-link {
+            display: block;
+            padding: 12px 15px;
+            text-decoration: none;
+            background-color: var(--primary-color);
+            color: #fff;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-weight: 600;
+            text-align: center;
+            font-size: 1.1em;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+
+        .home-link:hover {
+            background-color: #0b3a82; /* Darker shade of primary-color */
+            transform: scale(1.03);
+        }
+
+        .sidebar-nav {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .sidebar-nav .chapter-title {
+            font-weight: bold;
+            color: #555;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            padding: 0 15px;
+            font-size: 0.9em;
+            text-transform: uppercase;
+        }
+        
+        .sidebar-nav a {
+            display: block;
+            padding: 10px 15px;
+            text-decoration: none;
+            color: #333;
+            border-radius: 6px;
+            margin-bottom: 5px;
+            transition: background-color 0.3s, color 0.3s;
+            font-weight: 500;
+        }
+
+        .sidebar-nav a:hover {
+            background-color: var(--secondary-color);
+            color: #fff;
+        }
+        
+        .sidebar-nav a.active {
+            background-color: var(--primary-color);
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .main-content {
+            flex-grow: 1;
+            padding: 30px 40px;
+            overflow-x: hidden;
+        }
+
+        header h1 {
+            text-align: center;
+            margin-top: 0;
+            margin-bottom: 25px;
+            color: var(--primary-color);
+            font-size: 2em;
+        }
+        
+        h2, h3, h4 {
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 10px;
+            margin-top: 30px;
+        }
+
+        h4 {
+            border-bottom: none;
+            color: var(--secondary-color);
+        }
+
+        #home-screen p {
+            text-align: center;
+            font-size: 1.1em;
+            color: #6c757d;
+        }
+
+        .back-button {
+            display: inline-block;
+            margin-top: 30px;
+            background-color: #6c757d;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-size: 16px;
+            text-decoration: none;
+            transition: background-color 0.3s;
+        }
+        
+        .back-button:hover {
+             background-color: #5a6268;
+        }
+
+        .content-section {
+            display: none;
+        }
+        
+        .content-section.is-active {
+            display: block;
+            animation: fadeIn var(--transition-speed) forwards;
+        }
+
+        .content-section.is-hiding {
+            display: block;
+            animation: fadeOut var(--transition-speed) forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeOut {
+            from { opacity: 1; transform: translateY(0); }
+            to { opacity: 0; transform: translateY(-10px); }
+        }
+        
+        .method, .solution {
+            background-color: var(--light-bg);
+            border-left: 5px solid var(--secondary-color);
+            padding: 15px 20px;
+            margin: 25px 0;
+            border-radius: 0 8px 8px 0;
+            overflow-x: auto;
+        }
+        
+        .solution {
+            background-color: #e6ffed;
+            border-left-color: #28a745;
+        }
+
+        @media (max-width: 992px) {
+            .page-container {
+                flex-direction: column;
+                margin: 0;
+                min-height: 100vh;
+                border-radius: 0;
+            }
+            .sidebar {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid var(--border-color);
+                border-radius: 0;
+                max-height: 40vh;
+            }
+            .main-content {
+                padding: 20px;
+            }
+            header h1 {
+                font-size: 1.6em;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="page-container">
+        <aside class="sidebar">
+            <h2 class="menu-title">Danh mục</h2>
+            <a href="1.html#quiz-level-selection-screen" class="home-link">🏠 Home</a>
+            <ul class="sidebar-nav">
+                <li><a href="#home-screen" class="nav-link" data-target="home-screen">Trang chủ</a></li>
+                
+                <li class="chapter-title">Chương 1: Mở đầu</li>
+                <li><a href="#section-tiende" class="nav-link" data-target="section-tiende">Các tiên đề</a></li>
+                <li><a href="#section-giao-tuyen" class="nav-link" data-target="section-giao-tuyen">Dạng 1.1: Tìm giao tuyến</a></li>
+                <li><a href="#section-giao-diem" class="nav-link" data-target="section-giao-diem">Dạng 1.2: Tìm giao điểm</a></li>
+                <li><a href="#section-thiet-dien" class="nav-link" data-target="section-thiet-dien">Dạng 1.3: Tìm thiết diện</a></li>
+                <li><a href="#section-thang-hang-dong-quy" class="nav-link" data-target="section-thang-hang-dong-quy">Dạng 1.4: Thẳng hàng & Đồng quy</a></li>
+                
+                <li class="chapter-title">Chương 2: Quan hệ song song</li>
+                <li><a href="#section-duong-song-song-mp" class="nav-link" data-target="section-duong-song-song-mp">Bài 1: ĐT song song MP</a></li>
+                <li><a href="#section-mp-song-song" class="nav-link" data-target="section-mp-song-song">Bài 2: Hai MP song song</a></li>
+                <li><a href="#section-ba-mp-cat-nhau" class="nav-link" data-target="section-ba-mp-cat-nhau">Bài 3: Giao tuyến 3 mặt phẳng</a></li>
+                <li><a href="#section-lang-tru" class="nav-link" data-target="section-lang-tru">Bài 4: Phép chiếu & Lăng trụ</a></li>
+
+                <li class="chapter-title">Chương 3: Quan hệ vuông góc</li>
+                <li><a href="#section-duong-vuong-goc-mp" class="nav-link" data-target="section-duong-vuong-goc-mp">Bài 1: ĐT ⊥ MP</a></li>
+                <li><a href="#section-mp-vuong-goc" class="nav-link" data-target="section-mp-vuong-goc">Bài 2: Hai MP vuông góc</a></li>
+                <li><a href="#section-goc-hinhhoc" class="nav-link" data-target="section-goc-hinhhoc">Bài 3: Các loại Góc (HH)</a></li>
+                <li><a href="#section-khoang-cach" class="nav-link" data-target="section-khoang-cach">Bài 4: Khoảng cách</a></li>
+
+                <li class="chapter-title">Chuyên đề: Thể tích & Khối tròn xoay</li>
+                <li><a href="#section-the-tich" class="nav-link" data-target="section-the-tich">Thể tích khối đa diện</a></li>
+                <li><a href="#section-tron-xoay" class="nav-link" data-target="section-tron-xoay">Nón, Trụ, Cầu</a></li>
+                <li><a href="#section-toi-uu-hoa" class="nav-link" data-target="section-toi-uu-hoa">Ứng dụng đạo hàm tối ưu hóa</a></li>
+
+                <li class="chapter-title">Chuyên đề: Phương pháp tọa độ</li>
+                <li><a href="#section-toado-coban" class="nav-link" data-target="section-toado-coban">Hệ tọa độ & Vectơ</a></li>
+                <li><a href="#section-tich-co-huong" class="nav-link" data-target="section-tich-co-huong">Tích có hướng & Ứng dụng</a></li>
+                <li><a href="#section-phuong-trinh" class="nav-link" data-target="section-phuong-trinh">Phương trình MP, ĐT, Mặt cầu</a></li>
+                <li><a href="#section-toado-ungdung" class="nav-link" data-target="section-toado-ungdung">Ứng dụng tính Góc & Khoảng cách</a></li>
+            </ul>
+        </aside>
+
+        <main class="main-content">
+            <header>
+                <h1>📖 Ôn tập Toàn diện Hình học không gian</h1>
+            </header>
+            
+            <section id="home-screen" class="content-section">
+                <h2>Chào mừng!</h2>
+                <p>Chọn một chủ đề từ thanh điều hướng bên cạnh để bắt đầu ôn tập.</p>
+            </section>
+            
+            <section id="section-tiende" class="content-section">
+                <h2>Các Tiên đề và Cách xác định mặt phẳng</h2>
+                <div class="method">
+                    <h3>Các tiên đề của Hình học không gian</h3>
+                    <p>Các tiên đề là những "luật chơi" nền tảng, được thừa nhận mà không cần chứng minh.</p>
+                    <ul>
+                        <li><b>Tiên đề 1:</b> Có một và chỉ một đường thẳng đi qua hai điểm phân biệt.</li>
+                        <li><b>Tiên đề 2:</b> Có một và chỉ một mặt phẳng đi qua ba điểm không thẳng hàng.</li>
+                        <li><b>Tiên đề 3:</b> Nếu hai điểm phân biệt của một đường thẳng thuộc một mặt phẳng thì mọi điểm của đường thẳng đó đều thuộc mặt phẳng ấy.</li>
+                        <li><b>Tiên đề 4:</b> Tồn tại bốn điểm không cùng nằm trên một mặt phẳng (không đồng phẳng), khẳng định sự tồn tại của không gian 3D.</li>
+                        <li><b>Tiên đề 5:</b> Nếu hai mặt phẳng phân biệt có một điểm chung thì chúng có một đường thẳng chung duy nhất chứa tất cả các điểm chung đó (gọi là giao tuyến).</li>
+                    </ul>
+                    <h3>Cách xác định một mặt phẳng</h3>
+                    <p>Một mặt phẳng được xác định duy nhất khi biết nó đi qua:</p>
+                    <ol>
+                        <li>Ba điểm không thẳng hàng.</li>
+                        <li>Một đường thẳng và một điểm không thuộc đường thẳng đó.</li>
+                        <li>Hai đường thẳng cắt nhau.</li>
+                        <li>Hai đường thẳng song song.</li>
+                    </ol>
+                </div>
+                <a href="#home-screen" class="back-button">Quay về trang chủ</a>
+            </section>
+
+            <section id="section-giao-tuyen" class="content-section">
+                <h2>Dạng 1.1: Tìm giao tuyến của hai mặt phẳng</h2>
+                <div class="method">
+                    <h3>Phương pháp giải</h3>
+                    <p>Dựa vào Tiên đề 5, để tìm giao tuyến của hai mặt phẳng, ta cần tìm <strong>hai điểm chung</strong> phân biệt của chúng. Đường thẳng đi qua hai điểm này chính là giao tuyến cần tìm.</p>
+                </div>
+                <a href="#home-screen" class="back-button">Quay về trang chủ</a>
+            </section>
+            
+            <section id="section-giao-diem" class="content-section">
+                <h2>Dạng 1.2: Tìm giao điểm của đường thẳng và mặt phẳng</h2>
+                <div class="method">
+                    <h3>Phương pháp giải</h3>
+                    <p>Để tìm giao điểm của đường thẳng $d$ và mặt phẳng $(\alpha)$, ta thực hiện các bước sau:</p>
+                    <ol>
+                        <li>Chọn một mặt phẳng phụ $(\beta)$ chứa đường thẳng $d$.</li>
+                        <li>Tìm giao tuyến $\Delta$ của $(\alpha)$ và $(\beta)$.</li>
+                        <li>Trong mặt phẳng $(\beta)$, giao điểm của $d$ và $\Delta$ chính là giao điểm cần tìm.</li>
+                    </ol>
+                </div>
+                <a href="#home-screen" class="back-button">Quay về trang chủ</a>
+            </section>
+            
+            <section id="section-thiet-dien" class="content-section">
+                <h2>Dạng 1.3: Dựng thiết diện</h2>
+                <div class="method">
+                    <h3>Phương pháp giải</h3>
+                    <p>Thiết diện là đa giác tạo bởi một mặt phẳng cắt một khối đa diện. Để dựng thiết diện, ta lần lượt tìm các <strong>đoạn giao tuyến</strong> của mặt phẳng cắt với các mặt của khối đa diện cho đến khi tạo thành một đa giác khép kín.</p>
+                </div>
+                <a href="#home-screen" class="back-button">Quay về trang chủ</a>
+            </section>
+
+            <section id="section-thang-hang-dong-quy" class="content-section">
+                <h2>Dạng 1.4: Chứng minh ba điểm thẳng hàng</h2>
+                <div class="method">
+                    <h3>Phương pháp giải</h3>
+                    <p>Để chứng minh ba điểm thẳng hàng, ta chứng minh chúng cùng thuộc hai mặt phẳng phân biệt. Khi đó, chúng phải nằm trên giao tuyến của hai mặt phẳng đó, do đó chúng thẳng hàng.</p>
+                </div>
+                <a href="#home-screen" class="back-button">Quay về trang chủ</a>
+            </section>
+
+            <section id="section-duong-song-song-mp" class="content-section">
+                <h2>Chương 2, Bài 1: Đường thẳng song song với mặt phẳng</h2>
+                <div class="method">
+                    <h3>Phương pháp chứng minh</h3>
+                    <p>Để chứng minh đường thẳng $d$ song song với mặt phẳng $(\alpha)$, ta chứng minh $d$ không nằm trong $(\alpha)$ và $d$ song song với một đường thẳng $d'$ nằm trong $(\alpha)$.</p>
+                </div>
+                <a href="#home-screen" class="back-button">Quay về trang chủ</a>
+            </section>
+            
+             <section id="section-mp-song-song" class="content-section">
+                <h2>Chương 2, Bài 2: Hai mặt phẳng song song</h2>
+                <div class="method">
+                    <h3>Phương pháp chứng minh</h3>
+                    <p>Để chứng minh mặt phẳng $(\alpha)$ song song với mặt phẳng $(\beta)$, ta chứng minh $(\alpha)$ chứa hai đường thẳng cắt nhau $a, b$ và cả hai đường thẳng này cùng song song với $(\beta)$.</p>
+                </div>
+                <a href="#home-screen" class="back-button">Quay về trang chủ</a>
+            </section>
+
+            <section id="section-ba-mp-cat-nhau" class="content-section">
+                <h2>Chương 2, Bài 3: Giao tuyến của ba mặt phẳng</h2>
+                <div class="method">
+                    <h4>Định lý về giao tuyến của ba mặt phẳng</h4>
+                    <p>Nếu ba mặt phẳng phân biệt đôi một cắt nhau theo ba giao tuyến phân biệt thì ba giao tuyến ấy hoặc đồng quy, hoặc đôi một song song với nhau.</p>
+                    
+                    <h4>Hệ quả quan trọng</h4>
+                    <p>Nếu hai mặt phẳng song song $(\alpha)$ và $(\beta)$ bị cắt bởi một mặt phẳng thứ ba $(\gamma)$ thì hai giao tuyến tạo thành sẽ song song với nhau.</p>
+                </div>
+                <a href="#home-screen" class="back-button">Quay về trang chủ</a>
+            </section>
+            
+            <section id="section-lang-tru" class="content-section">
+                <h2>Chương 2, Bài 4: Phép chiếu song song & Lăng trụ</h2>
+                <div class="method">
+                    <h3>Phép chiếu song song</h3>
+                    <p>Là công cụ để biểu diễn vật thể 3D trên một mặt phẳng 2D. Phép chiếu này bảo toàn tính thẳng hàng, tính song song và tỉ số độ dài của hai đoạn thẳng trên hai đường thẳng song song. Dựa vào đó, hình vuông, hình chữ nhật thường được biểu diễn bằng hình bình hành.</p>
+                    <h3>Hình lăng trụ</h3>
+                    <p>Là hình có hai đáy là hai đa giác bằng nhau nằm trên hai mặt phẳng song song, các mặt bên là các hình bình hành.</p>
+                </div>
+                <a href="#home-screen" class="back-button">Quay về trang chủ</a>
+            </section>
+            
+            <section id="section-duong-vuong-goc-mp" class="content-section">
+                <h2>Chương 3, Bài 1: Đường thẳng vuông góc với mặt phẳng</h2>
+                <div class="method">
+                    <h3>Phương pháp chứng minh (Định lý then chốt)</h3>
+                    <p>Nếu một đường thẳng vuông góc với <strong>hai đường thẳng cắt nhau</strong> cùng nằm trong một mặt phẳng thì nó vuông góc với mặt phẳng ấy. Đây là định lý quan trọng nhất để giải quyết các bài toán về góc và khoảng cách.</p>
+                </div>
+                <a href="#home-screen" class="back-button">Quay về trang chủ</a>
+            </section>
+
+            <section id="section-mp-vuong-goc" class="content-section">
+                <h2>Chương 3, Bài 2: Hai mặt phẳng vuông góc</h2>
+                <div class="method">
+                    <h3>Phương pháp chứng minh</h3>
+                    <p>Hai mặt phẳng được gọi là vuông góc với nhau nếu một trong chúng chứa một đường thẳng vuông góc với mặt phẳng kia.</p>
+                </div>
+                <a href="#home-screen" class="back-button">Quay về trang chủ</a>
+            </section>
+            
+            <section id="section-goc-hinhhoc" class="content-section">
+                <h2>Chương 3, Bài 3: Các loại Góc (Phương pháp hình học)</h2>
+                <div class="method">
+                    <h4>1. Góc giữa hai đường thẳng chéo nhau</h4>
+                    <p>Góc giữa hai đường thẳng chéo nhau $a$ và $b$ là góc giữa hai đường thẳng $a'$ và $b'$ cùng đi qua một điểm $O$ bất kỳ và lần lượt song song (hoặc trùng) với $a$ và $b$.</p>
+
+                    <h4>2. Góc giữa đường thẳng và mặt phẳng</h4>
+                    <p>Góc giữa đường thẳng $d$ và mặt phẳng $(P)$ là góc giữa $d$ và hình chiếu vuông góc $d'$ của nó trên $(P)$.</p>
+                    <ol>
+                        <li><b>Bước 1:</b> Tìm giao điểm $O$ của $d$ và $(P)$.</li>
+                        <li><b>Bước 2:</b> Lấy điểm $A$ trên $d$ và dựng hình chiếu vuông góc $H$ của $A$ lên $(P)$.</li>
+                        <li><b>Bước 3:</b> Góc cần tìm là $\widehat{AOH}$.</li>
+                    </ol>
+                    
+                    <h4>3. Góc giữa hai mặt phẳng</h4>
+                    <p>Góc giữa hai mặt phẳng cắt nhau $(P)$ và $(Q)$ được xác định theo các bước sau:</p>
+                    <ol>
+                        <li><b>Bước 1:</b> Xác định giao tuyến $\Delta$ của $(P)$ và $(Q)$.</li>
+                        <li><b>Bước 2:</b> Trên $\Delta$, chọn một điểm $I$ bất kỳ.</li>
+                        <li><b>Bước 3:</b> Trong $(P)$, kẻ đường thẳng $a$ qua $I$ và $a \perp \Delta$.</li>
+                        <li><b>Bước 4:</b> Trong $(Q)$, kẻ đường thẳng $b$ qua $I$ và $b \perp \Delta$.</li>
+                        <li><b>Bước 5:</b> Góc giữa $(P)$ và $(Q)$ chính là góc giữa hai đường thẳng $a$ và $b$.</li>
+                    </ol>
+                </div>
+                <a href="#home-screen" class="back-button">Quay về trang chủ</a>
+            </section>
+
+            <section id="section-khoang-cach" class="content-section">
+                <h2>Chương 3, Bài 4: Khoảng cách</h2>
+                <div class="method">
+                    <h3>Khoảng cách giữa hai đường thẳng chéo nhau</h3>
+                    <p>Đây là dạng toán phức tạp, có hai phương pháp chính:</p>
+                    <ul>
+                        <li><b>Dựng đoạn vuông góc chung:</b> Tìm đoạn $MN$ sao cho $M, N$ lần lượt thuộc hai đường thẳng và $MN$ vuông góc với cả hai. Độ dài $MN$ là khoảng cách cần tìm.</li>
+                        <li><b>Sử dụng mặt phẳng song song:</b> Dựng mặt phẳng $(\alpha)$ chứa đường thẳng này và song song với đường thẳng kia. Khoảng cách cần tìm bằng khoảng cách từ một điểm bất kỳ trên đường thẳng còn lại đến mặt phẳng $(\alpha)$.</li>
+                    </ul>
+                </div>
+                <a href="#home-screen" class="back-button">Quay về trang chủ</a>
+            </section>
+
+            <section id="section-the-tich" class="content-section">
+                <h2>Chuyên đề: Thể tích khối đa diện</h2>
+                <div class="method">
+                    <h4>1. Thể tích khối chóp</h4>
+                    <p>Thể tích của một khối chóp luôn bằng một phần ba thể tích của khối lăng trụ có cùng diện tích đáy và chiều cao. Công thức: $V$<sub>chóp</sub> = $\frac{1}{3}Bh$.</p>
+                    
+                    <h4>2. Thể tích khối lăng trụ</h4>
+                    <p>Công thức: $V$<sub>lăng trụ</sub> = $Bh$.</p>
+
+                    <h4>3. Tỉ số thể tích (Công thức Simpson)</h4>
+                    <p>Cho khối chóp tam giác $S.ABC$. Trên các cạnh $SA, SB, SC$ lần lượt lấy các điểm $A', B', C'$. Khi đó, ta có:</p>
+                    <p>$$ \frac{V_{S.A'B'C'}}{V_{S.ABC}} = \frac{SA'}{SA} \cdot \frac{SB'}{SB} \cdot \frac{SC'}{SC} $$</p>
+                </div>
+                <a href="#home-screen" class="back-button">Quay về trang chủ</a>
+            </section>
+
+            <section id="section-tron-xoay" class="content-section">
+                <h2>Chuyên đề: Khối tròn xoay (Nón, Trụ, Cầu)</h2>
+                <div class="method">
+                    <p>Khối tròn xoay được tạo ra bằng cách quay một hình phẳng quanh một trục cố định.</p>
+                    <h4>1. Hình Nón và Khối Nón</h4>
+                    <p>Tạo thành khi quay tam giác vuông quanh một cạnh góc vuông.</p>
+                    <ul>
+                        <li><strong>Diện tích xung quanh:</strong> $S_{xq} = \pi rl$</li>
+                        <li><strong>Thể tích khối nón:</strong> $V = \frac{1}{3}\pi r^2h$</li>
+                    </ul>
+
+                    <h4>2. Hình Trụ và Khối Trụ</h4>
+                    <p>Tạo thành khi quay hình chữ nhật quanh một cạnh.</p>
+                    <ul>
+                        <li><strong>Diện tích xung quanh:</strong> $S_{xq} = 2\pi rh$</li>
+                        <li><strong>Thể tích khối trụ:</strong> $V = \pi r^2h$</li>
+                    </ul>
+
+                    <h4>3. Mặt Cầu và Khối Cầu</h4>
+                    <p>Tạo thành khi quay nửa hình tròn quanh đường kính của nó.</p>
+                    <ul>
+                        <li><strong>Diện tích mặt cầu:</strong> $S = 4\pi R^2$</li>
+                        <li><strong>Thể tích khối cầu:</strong> $V = \frac{4}{3}\pi R^3$</li>
+                    </ul>
+                </div>
+                <a href="#home-screen" class="back-button">Quay về trang chủ</a>
+            </section>
+
+            <section id="section-toi-uu-hoa" class="content-section">
+                <h2>Chuyên đề: Ứng dụng đạo hàm trong bài toán tối ưu hóa</h2>
+                <div class="method">
+                    <h3>Phương pháp giải</h3>
+                    <p>Các bài toán tối ưu hóa trong hình học không gian (tìm giá trị lớn nhất/nhỏ nhất) thường được giải quyết bằng cách sử dụng công cụ đạo hàm qua các bước sau:</p>
+                    <ol>
+                        <li><b>Bước 1: Đặt ẩn và xác định điều kiện.</b> Chọn một đại lượng biến thiên phù hợp làm ẩn (ví dụ: chiều cao $h$, bán kính đáy $r$,...) và tìm điều kiện tồn tại của ẩn đó (ví dụ: $h > 0$).</li>
+                        <li><b>Bước 2: Lập hàm số.</b> Biểu diễn đại lượng cần tối ưu (thể tích $V$, diện tích $S$,...) dưới dạng một hàm số theo ẩn đã chọn ở bước 1. Lưu ý: có thể phải sử dụng các mối liên hệ cho trước (định lý Pytago, tam giác đồng dạng,...) để hàm số cuối cùng chỉ còn một ẩn.</li>
+                        <li><b>Bước 3: Khảo sát hàm số.</b> Dùng đạo hàm để khảo sát sự biến thiên của hàm số vừa lập trên miền điều kiện đã xác định. Lập bảng biến thiên để tìm ra giá trị lớn nhất (max) hoặc nhỏ nhất (min).</li>
+                        <li><b>Bước 4: Kết luận.</b> Dựa vào bảng biến thiên để kết luận về giá trị tối ưu cần tìm và các kích thước tương ứng.</li>
+                    </ol>
+                    
+                    <h4>Ví dụ bài toán thường gặp</h4>
+                    <p>Sản xuất một lon nước hình trụ từ một tấm tôn có diện tích cho trước sao cho thể tích của lon là lớn nhất. Hoặc, tìm kích thước của một chiếc phễu hình nón có thể tích cho trước để diện tích bề mặt của phễu (lượng vật liệu cần dùng) là nhỏ nhất.</p>
+                </div>
+                <a href="#home-screen" class="back-button">Quay về trang chủ</a>
+            </section>
+            
+            <section id="section-toado-coban" class="content-section">
+                <h2>Phương pháp tọa độ: Hệ tọa độ & Vectơ</h2>
+                <div class="method">
+                    <p>Phương pháp tọa độ chuyển bài toán hình học sang các phép toán đại số. Nó đặc biệt hiệu quả với các hình có nhiều yếu tố vuông góc.</p>
+                    <h4>1. Hệ tọa độ Oxyz</h4>
+                    <p>Gồm ba trục $Ox, Oy, Oz$ đôi một vuông góc. Mỗi điểm $M$ được xác định bởi một bộ ba số $(x; y; z)$.</p>
+                    <h4>2. Tọa độ Vectơ và các phép toán</h4>
+                    <p>Một vectơ $\vec{u} = (x; y; z)$ khi $\vec{u} = x\vec{i} + y\vec{j} + z\vec{k}$. Các phép toán cộng, trừ, nhân với một số được thực hiện trên từng thành phần.</p>
+                    <h4>3. Tích vô hướng</h4>
+                    <p>$\vec{a} \cdot \vec{b} = a_1b_1 + a_2b_2 + a_3b_3$. Dùng để kiểm tra sự vuông góc ($\vec{a} \cdot \vec{b} = 0$) và tính góc giữa hai vectơ.</p>
+                </div>
+                <a href="#home-screen" class="back-button">Quay về trang chủ</a>
+            </section>
+
+            <section id="section-tich-co-huong" class="content-section">
+                <h2>Phương pháp tọa độ: Tích có hướng & Ứng dụng</h2>
+                <div class="method">
+                    <h4>1. Định nghĩa</h4>
+                    <p>Tích có hướng của hai vectơ $\vec{a}=(a_1, a_2, a_3)$ và $\vec{b}=(b_1, b_2, b_3)$ là một vectơ $\vec{c}=[\vec{a}, \vec{b}]$ được xác định bởi:</p>
+                    <p>$\vec{c} = (a_2b_3 - a_3b_2; a_3b_1 - a_1b_3; a_1b_2 - a_2b_1)$</p>
+                    <h4>2. Tính chất và Ứng dụng quan trọng</h4>
+                    <ul>
+                        <li>Vectơ $[\vec{a}, \vec{b}]$ <strong>vuông góc</strong> với cả $\vec{a}$ và $\vec{b}$. Đây là ứng dụng quan trọng nhất để tìm <strong>vectơ pháp tuyến</strong> của mặt phẳng.</li>
+                        <li><strong>Diện tích tam giác ABC:</strong> $S_{\triangle ABC} = \frac{1}{2} |[\vec{AB}, \vec{AC}]|$</li>
+                        <li><strong>Thể tích tứ diện ABCD:</strong> $V_{ABCD} = \frac{1}{6} |([\vec{AB}, \vec{AC}]) \cdot \vec{AD}|$</li>
+                        <li><strong>Điều kiện đồng phẳng:</strong> Ba vectơ $\vec{a}, \vec{b}, \vec{c}$ đồng phẳng khi và chỉ khi $[\vec{a}, \vec{b}] \cdot \vec{c} = 0$.</li>
+                    </ul>
+                </div>
+                <a href="#home-screen" class="back-button">Quay về trang chủ</a>
+            </section>
+            
+            <section id="section-phuong-trinh" class="content-section">
+                <h2>Phương pháp tọa độ: Phương trình MP, ĐT, Mặt cầu</h2>
+                <div class="method">
+                    <h4>1. Phương trình mặt phẳng $(\alpha)$</h4>
+                    <p>Đi qua điểm $M_0(x_0, y_0, z_0)$ và có vectơ pháp tuyến $\vec{n}=(A, B, C)$:</p>
+                    <p>$A(x-x_0) + B(y-y_0) + C(z-z_0) = 0$</p>
+                    <p>Dạng tổng quát: $Ax + By + Cz + D = 0$.</p>
+
+                    <h4>2. Phương trình đường thẳng $(d)$</h4>
+                    <p>Đi qua điểm $M_0(x_0, y_0, z_0)$ và có vectơ chỉ phương $\vec{u}=(a, b, c)$:</p>
+                    <ul>
+                        <li><b>Dạng tham số:</b> $\begin{cases} x = x_0 + at \\ y = y_0 + bt \\ z = z_0 + ct \end{cases}$</li>
+                        <li><b>Dạng chính tắc:</b> $\frac{x-x_0}{a} = \frac{y-y_0}{b} = \frac{z-z_0}{c}$ (với $abc \neq 0$)</li>
+                    </ul>
+
+                    <h4>3. Phương trình mặt cầu $(S)$</h4>
+                    <p>Có tâm $I(a, b, c)$ và bán kính $R$:</p>
+                    <p>$(x-a)^2 + (y-b)^2 + (z-c)^2 = R^2$.</p>
+                </div>
+                <a href="#home-screen" class="back-button">Quay về trang chủ</a>
+            </section>
+            
+            <section id="section-toado-ungdung" class="content-section">
+                <h2>Phương pháp tọa độ: Ứng dụng tính Góc & Khoảng cách</h2>
+                <div class="method">
+                    <h4>1. Công thức khoảng cách</h4>
+                    <p>Khoảng cách từ điểm $M_0(x_0, y_0, z_0)$ đến mặt phẳng $(P): Ax + By + Cz + D = 0$ là:</p>
+                    <p>$$d(M_0, (P)) = \frac{|Ax_0 + By_0 + Cz_0 + D|}{\sqrt{A^2 + B^2 + C^2}}$$</p>
+
+                    <h4>2. Công thức tính góc</h4>
+                    <ul>
+                        <li>
+                            <b>Góc giữa hai mặt phẳng:</b>
+                            <p>$\cos\varphi = \frac{|\vec{n_1} \cdot \vec{n_2}|}{|\vec{n_1}| \cdot |\vec{n_2}|}$</p>
+                            <p>(với $\vec{n_1}, \vec{n_2}$ là hai vectơ pháp tuyến).</p>
+                        </li>
+                        <li>
+                            <b>Góc giữa đường thẳng và mặt phẳng:</b>
+                            <p>$\sin\alpha = \frac{|\vec{u} \cdot \vec{n}|}{|\vec{u}| \cdot |\vec{n}|}$</p>
+                            <p>(với $\vec{u}$ là vectơ chỉ phương của đường thẳng, $\vec{n}$ là vectơ pháp tuyến của mặt phẳng).</p>
+                        </li>
+                    </ul>
+                </div>
+                <a href="#home-screen" class="back-button">Quay về trang chủ</a>
+            </section>
+
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const navLinks = document.querySelectorAll('.sidebar-nav a');
+            const transitionTime = 400;
+
+            const updateActiveLink = (targetId) => {
+                navLinks.forEach(link => {
+                    link.classList.remove('active');
+                    if (link.dataset.target === targetId) {
+                        link.classList.add('active');
+                    }
+                });
+            };
+
+            const showSection = (targetId) => {
+                const currentActive = document.querySelector('.content-section.is-active');
+                const targetSection = document.getElementById(targetId);
+
+                if (currentActive && currentActive.id !== targetId) {
+                    currentActive.classList.add('is-hiding');
+                    currentActive.classList.remove('is-active');
+
+                    setTimeout(() => {
+                        currentActive.classList.remove('is-hiding');
+                        if (targetSection) {
+                            targetSection.classList.add('is-active');
+                        }
+                    }, transitionTime);
+                } else if (!currentActive && targetSection) {
+                    targetSection.classList.add('is-active');
+                }
+                
+                updateActiveLink(targetId);
+            };
+            
+            const handleNavigation = () => {
+                const hash = window.location.hash.substring(1) || 'home-screen';
+                showSection(hash);
+            };
+
+            navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const targetId = link.dataset.target;
+                    history.pushState(null, '', '#' + targetId);
+                    handleNavigation();
+                });
+            });
+
+            window.addEventListener('popstate', handleNavigation);
+            
+            handleNavigation();
+        });
+    </script>
+
+</body>
+</html>

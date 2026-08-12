@@ -1,0 +1,1571 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trò Chơi Xếp Khối - Kiểu Block Blast</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+      MathJax = {
+        tex: {
+          inlineMath: [['$', '$'], ['\\(', '\\)']]
+        },
+        svg: {
+          fontCache: 'global'
+        }
+      };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        :root {
+            font-size: clamp(12px, 3.5vw, 16px);
+            --board-bg: #34495e;
+            --empty-cell-bg: #4a6572;
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        @keyframes blockPlaceAnim {
+            0% { transform: scale(0.3); opacity: 0; }
+            60% { transform: scale(1.1); opacity: 1; }
+            80% { transform: scale(0.95); }
+            100% { transform: scale(1.0); opacity: 1; }
+        }
+        @keyframes clearAnimation {
+            0% { transform: scale(1.0); opacity: 1; }
+            50% { transform: scale(1.2); background-color: #fff; box-shadow: 0 0 15px #fff; }
+            100% { transform: scale(0); opacity: 0; }
+        }
+        @keyframes scorePopupAnim {
+            from { opacity: 1; transform: translateY(0); }
+            to { opacity: 0; transform: translateY(-50px); }
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes pulsePreview {
+            0% { transform: scale(1.0); background-color: rgba(236, 240, 241, 0.3); }
+            50% { transform: scale(1.08); background-color: rgba(236, 240, 241, 0.5); }
+            100% { transform: scale(1.0); background-color: rgba(236, 240, 241, 0.3); }
+        }
+        @keyframes shake {
+            10%, 90% { transform: translateX(-2px); } 20%, 80% { transform: translateX(2px); }
+            30%, 50%, 70% { transform: translateX(-3px); } 40%, 60% { transform: translateX(3px); }
+        }
+
+        body {
+            font-family: 'Nunito', sans-serif;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            background: linear-gradient(to bottom right, #2c3e50, #3498db);
+            padding: 2rem 1rem;
+            color: #ecf0f1;
+            min-height: 100vh;
+        }
+
+        .game-wrapper {
+            width: 100%;
+            max-width: 500px;
+            margin: auto;
+        }
+
+        .game-container {
+            position: relative;
+            text-align: center;
+            background-color: rgba(44, 62, 80, 0.8);
+            padding: 1.2rem;
+            border-radius: 1rem;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            font-size: 1.75rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        #player-name-display {
+            font-size: 1.1rem;
+            color: #f1c40f;
+            margin-bottom: 1rem;
+            font-weight: bold;
+        }
+        
+        #score-popup-container {
+            position: absolute;
+            top: 8rem;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 12rem;
+            height: 12rem;
+            pointer-events: none;
+            z-index: 100;
+        }
+        
+        .score-popup {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 2rem;
+            font-weight: bold;
+            color: #f1c40f;
+            text-shadow: 2px 2px 2px rgba(0,0,0,0.7);
+            animation: scorePopupAnim 1.2s ease-out forwards;
+        }
+
+        .info-panel {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        #lives-container {
+            font-size: 1.4rem;
+            display: flex;
+            gap: 0.2rem;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 0.25rem;
+            background-color: var(--board-bg);
+            border: 0.3rem solid var(--board-bg);
+            border-radius: 0.5rem;
+            margin: 0 auto 0.75rem auto;
+            padding: 0.3rem;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+            width: 100%;
+            aspect-ratio: 1 / 1;
+        }
+
+        .cell {
+            background-color: var(--empty-cell-bg);
+            border-radius: 0.25rem;
+            transition: background-color 0.15s ease-in-out;
+        }
+
+        .cell.filled {
+            border-bottom: 0.25rem solid rgba(0,0,0,0.2);
+            box-shadow: inset 0 0.2rem 0.3rem rgba(255,255,255,0.2);
+            animation: blockPlaceAnim 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+        
+        .cell-color-cyan { background: linear-gradient(145deg, #1abc9c, #16a085); }
+        .cell-color-blue { background: linear-gradient(145deg, #3498db, #2980b9); }
+        .cell-color-yellow { background: linear-gradient(145deg, #f1c40f, #f39c12); }
+        .cell-color-red { background: linear-gradient(145deg, #e74c3c, #c0392b); }
+        .cell-color-purple { background: linear-gradient(145deg, #9b59b6, #8e44ad); }
+        .cell-color-orange { background: linear-gradient(145deg, #e67e22, #d35400); }
+        .cell-color-green { background: linear-gradient(145deg, #2ecc71, #27ae60); }
+        .cell-color-pink { background: linear-gradient(145deg, #e84393, #c30062); }
+        .cell-color-teal { background: linear-gradient(145deg, #00cec9, #00b894); }
+        .cell-color-brown { background: linear-gradient(145deg, #a0522d, #8b4513); }
+
+        .cell.preview { animation: pulsePreview 1.2s infinite ease-in-out; }
+        .cell.invalid-preview { background-color: rgba(231, 76, 60, 0.6); animation: shake 0.4s ease-in-out; }
+        .cell.clearing { animation: clearAnimation 0.6s ease-out forwards; }
+        
+        #instruction-text {
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+            min-height: 1.5rem;
+        }
+
+        .choices-container {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            gap: 0.5rem;
+            min-height: 6rem;
+        }
+
+        .block-choice {
+            cursor: grab;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            transition: transform 0.2s ease-out, opacity 0.2s ease-out;
+        }
+        .block-choice:hover { transform: translateY(-5px); }
+        .block-choice.dragging { opacity: 0; transform: translateY(-5px); pointer-events: none; }
+
+        .block-grid { display: grid; gap: 0.2rem; pointer-events: none; }
+        
+        .block-cell {
+            width: 1.2rem;
+            height: 1.2rem;
+        }
+        .block-cell.filled { border-radius: 0.2rem; }
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex; justify-content: center; align-items: center;
+            animation: fadeIn 0.3s ease; z-index: 1000;
+            backdrop-filter: blur(5px);
+            padding: 1rem;
+        }
+        .modal-overlay.hidden { display: none; }
+
+        .modal-content {
+            background-color: #34495e; color: #ecf0f1; padding: 1.5rem;
+            border-radius: 1rem; text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 0 20px rgba(0,0,0,0.2); 
+            width: 100%;
+            max-width: 500px;
+        }
+        
+        #question-text { font-size: 1.2rem; margin-top: 0; }
+        #answer-options { display: flex; flex-direction: column; gap: 0.8rem; margin-top: 1.2rem; }
+
+        .answer-btn, #restart-button, #next-question-button, #home-button, #start-game-button, #view-highscore-button, #close-highscore-button {
+            padding: 0.8rem 1.5rem;
+            font-size: 1.1rem;
+            cursor: pointer;
+            border-radius: 0.5rem;
+            font-family: 'Nunito', sans-serif;
+            font-weight: 700;
+            border: none;
+            transition: all 0.2s;
+        }
+        .answer-btn { border: 1px solid #7f8c8d; background-color: #566573; color: #ecf0f1; padding: 0.8rem 1rem; font-size: 1rem;}
+        .answer-btn:hover { background-color: #7f8c8d; border-color: #95a5a6; transform: translateY(-2px); }
+        
+        #restart-button, #start-game-button { background-color: #3498db; color: white; }
+        #restart-button:hover, #start-game-button:hover { background-color: #2980b9; }
+
+        #home-button, #close-highscore-button { background-color: #7f8c8d; color: white; }
+        #home-button:hover, #close-highscore-button:hover { background-color: #95a5a6; }
+        
+        #view-highscore-button { background-color: #27ae60; color: white; }
+        #view-highscore-button:hover { background-color: #229954; }
+        
+        .game-over-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+        
+        #player-name-input {
+            width: 80%;
+            padding: 0.8rem;
+            font-size: 1.1rem;
+            margin: 1rem 0;
+            border-radius: 0.5rem;
+            border: 2px solid #7f8c8d;
+            background-color: #ecf0f1;
+            color: #2c3e50;
+        }
+
+        #next-question-button { 
+            margin: 0.5rem 0 1rem 0;
+            background-color: #27ae60; 
+            color: white; 
+        }
+        #next-question-button:hover { background-color: #229954; }
+
+        .hidden { display: none; }
+
+        #highscore-list {
+            list-style: none;
+            padding: 0;
+            margin-top: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        #highscore-list li {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.3rem 0;
+            font-size: 1.1rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        #highscore-list li:last-child {
+            border-bottom: none;
+        }
+        #highscore-list .rank { font-weight: bold; color: #1abc9c; }
+        #highscore-list .name { flex-grow: 1; text-align: left; margin-left: 1rem; }
+        #highscore-list .score { font-weight: bold; color: #e67e22; }
+
+    </style>
+</head>
+<body>
+    <div class="game-wrapper">
+        <div class="game-container">
+            <h1>Xếp Khối Trí Tuệ</h1>
+            <div id="player-name-display"></div>
+            <div id="score-popup-container"></div>
+            <div class="info-panel">
+                <div>Lượt: <span id="turn-counter">0</span></div>
+                <div id="lives-container"></div>
+                <div>Điểm: <span id="score-counter">0</span></div>
+            </div>
+            <div id="game-board" class="board"></div>
+            <h2 id="instruction-text">Sẵn sàng để thử thách trí tuệ chưa?</h2>
+            <button id="next-question-button" class="hidden">Câu Tiếp Theo</button>
+            <div id="block-choices" class="choices-container"></div>
+        </div>
+    </div>
+    
+    <div id="start-screen" class="modal-overlay">
+        <div class="modal-content">
+            <h2>Chào Mừng!</h2>
+            <p>Vui lòng nhập tên của bạn để bắt đầu.</p>
+            <input type="text" id="player-name-input" placeholder="Tên người chơi..." maxlength="15">
+            <button id="start-game-button">Bắt đầu</button>
+        </div>
+    </div>
+    
+    <div id="game-over-screen" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2 id="game-over-title">Kết Thúc!</h2>
+            <p style="font-size: 1.1rem; margin-top: 0.5rem;">Chúc mừng bạn đã hoàn thành lượt chơi!</p>
+            <p style="font-size: 2.5rem; font-weight: bold; margin: 1rem 0; color: #f1c40f;"><span id="final-score">0</span></p>
+            <div class="game-over-buttons">
+                <button id="restart-button">Chơi Lại</button>
+                <button id="view-highscore-button">Xem Bảng Xếp Hạng</button>
+                <button id="home-button">Về Trang Chủ</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="question-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2 id="question-text">Đây là câu hỏi?</h2>
+            <div id="answer-options"></div>
+        </div>
+    </div>
+    
+    <div id="highscore-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2 style="color: #f1c40f;">🏆 Bảng Xếp Hạng 🏆</h2>
+            <ul id="highscore-list"></ul>
+            <button id="close-highscore-button">Đóng</button>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const BOARD_SIZE = 8;
+            const ANIMATION_DELAY = 600;
+            const MAX_LIVES = 5;
+
+            const BLOCK_LIBRARY = {
+                dot:   { points: 1, shape: [[1]], colorClass: 'cell-color-cyan' },
+                domino2: { points: 2, shape: [[1,1]], colorClass: 'cell-color-cyan' },
+                bar3:  { points: 3, shape: [[1,1,1]], colorClass: 'cell-color-blue' },
+                bar4:  { points: 4, shape: [[1,1,1,1]], colorClass: 'cell-color-blue' },
+                bar5:  { points: 5, shape: [[1,1,1,1,1]], colorClass: 'cell-color-blue' },
+                sqr2:  { points: 4, shape: [[1,1],[1,1]], colorClass: 'cell-color-yellow' },
+                l3:    { points: 3, shape: [[1,0],[1,1]], colorClass: 'cell-color-orange' },
+                l4:    { points: 4, shape: [[1,0,0],[1,1,1]], colorClass: 'cell-color-orange' },
+                l5:    { points: 5, shape: [[1,0],[1,0],[1,1,1]], colorClass: 'cell-color-orange' },
+                t4:    { points: 4, shape: [[1,1,1],[0,1,0]], colorClass: 'cell-color-purple' },
+                t5:    { points: 5, shape: [[1,1,1],[0,1,0],[0,1,0]], colorClass: 'cell-color-purple' },
+                z4:    { points: 4, shape: [[1,1,0],[0,1,1]], colorClass: 'cell-color-red' },
+                s4:    { points: 4, shape: [[0,1,1],[1,1,0]], colorClass: 'cell-color-red' },
+                plus5: { points: 5, shape: [[0,1,0],[1,1,1],[0,1,0]], colorClass: 'cell-color-green' },
+                u5:    { points: 5, shape: [[1,0,1],[1,1,1]], colorClass: 'cell-color-green' },
+                pipe3: { points: 3, shape: [[1],[1],[1]], colorClass: 'cell-color-blue' },
+                pipe4: { points: 4, shape: [[1],[1],[1],[1]], colorClass: 'cell-color-blue' },
+                pipe5: { points: 5, shape: [[1],[1],[1],[1],[1]], colorClass: 'cell-color-blue' },
+                smallL: { points: 3, shape: [[1,0],[1,0],[1,1]], colorClass: 'cell-color-orange' },
+                fatL: { points: 4, shape: [[1,1],[1,0],[1,0]], colorClass: 'cell-color-pink' },
+                cross: { points: 5, shape: [[0,1,0],[1,1,1],[0,1,0]], colorClass: 'cell-color-teal' },
+                longZ: { points: 5, shape: [[1,1,0,0],[0,1,1,0],[0,0,1,1]], colorClass: 'cell-color-red' },
+                pentaL: { points: 5, shape: [[1,0,0],[1,0,0],[1,1,1]], colorClass: 'cell-color-brown' },
+                pentaT: { points: 5, shape: [[1,1,1],[0,1,0],[0,1,0]], colorClass: 'cell-color-purple' },
+                pentaF: { points: 5, shape: [[0,1,1],[1,1,0],[0,1,0]], colorClass: 'cell-color-green' },
+            };
+            
+            const QA_DATABASE = [
+                {
+                    question: "Trong không gian, cho tứ giác ABCD có các cặp cạnh đối không song song và điểm S không thuộc mặt phẳng (ABCD). Giao tuyến của hai mặt phẳng (SAC) và (SBD) là đường thẳng nào?",
+                    options: ["SO, với O là giao điểm của AB và CD.", "SO, với O là giao điểm của AC và BD.", "SI, với I là giao điểm của AD và BC.", "SJ, với J là giao điểm của AB và CD."],
+                    correctAnswer: "SO, với O là giao điểm của AC và BD.",
+                    blocks: [BLOCK_LIBRARY.pentaL, BLOCK_LIBRARY.cross, BLOCK_LIBRARY.u5],
+                    hardestBlockIndex: 1
+                },
+                {
+                    question: "Cho hình chóp S.ABCD. Gọi M, N lần lượt là trung điểm của SA và SC. Khẳng định nào sau đây đúng?",
+                    options: ["MN song song với (ABCD).", "MN cắt (ABCD).", "MN nằm trong (ABCD).", "MN vuông góc với (ABCD)."],
+                    correctAnswer: "MN song song với (ABCD).",
+                    blocks: [BLOCK_LIBRARY.pipe4, BLOCK_LIBRARY.l5, BLOCK_LIBRARY.bar5],
+                    hardestBlockIndex: 0
+                },
+                {
+                    question: "Cho hình chóp S.ABCD có đáy ABCD là hình bình hành. Giao tuyến của hai mặt phẳng (SAD) và (SBC) là đường thẳng đi qua S và song song với đường thẳng nào?",
+                    options: ["AB và CD.", "AC và BD.", "AD và BC.", "SA và SB."],
+                    correctAnswer: "AD và BC.",
+                    blocks: [BLOCK_LIBRARY.sqr2, BLOCK_LIBRARY.t4, BLOCK_LIBRARY.z4],
+                    hardestBlockIndex: 2
+                },
+                {
+                    question: "Cho tứ diện ABCD. Gọi M, N lần lượt là trung điểm của AB và CD. P là điểm thuộc đoạn AD sao cho AP = 2PD. Giao điểm của MN và mặt phẳng (BCP) là điểm I. Tỉ số $\\frac{IM}{IN}$ bằng bao nhiêu?",
+                    options: ["1", "2", "$\\frac{1}{2}$", "$\\frac{1}{3}$"],
+                    correctAnswer: "$\\frac{1}{2}$",
+                    blocks: [BLOCK_LIBRARY.dot, BLOCK_LIBRARY.domino2, BLOCK_LIBRARY.l3],
+                    hardestBlockIndex: 2
+                },
+                {
+                    question: "Cho hình chóp S.ABCD có đáy là hình thang, đáy lớn AB. Gọi I, J lần lượt là trung điểm của AD và BC. K là điểm trên cạnh SB sao cho SK = 2KB. Giao tuyến của hai mặt phẳng (IJK) và (SAB) là đường thẳng nào?",
+                    options: ["Đường thẳng đi qua K và song song với AB.", "Đường thẳng đi qua I và J.", "Đường thẳng đi qua S và song song với IJ.", "Đường thẳng đi qua A và B."],
+                    correctAnswer: "Đường thẳng đi qua K và song song với AB.",
+                    blocks: [BLOCK_LIBRARY.plus5, BLOCK_LIBRARY.s4, BLOCK_LIBRARY.pentaT],
+                    hardestBlockIndex: 0
+                },
+                {
+                    question: "Cho tứ diện ABCD. Gọi G là trọng tâm của tam giác BCD. Giao điểm của đường thẳng AG và mặt phẳng (BCD) là điểm nào?",
+                    options: ["G", "A", "Trung điểm của BC.", "Không có giao điểm."],
+                    correctAnswer: "G",
+                    blocks: [BLOCK_LIBRARY.fatL, BLOCK_LIBRARY.longZ, BLOCK_LIBRARY.pentaF],
+                    hardestBlockIndex: 1
+                },
+                {
+                    question: "Cho hình chóp S.ABCD có đáy là hình bình hành. Gọi M là trung điểm của SC. Giao điểm của đường thẳng AM và mặt phẳng (SBD) là điểm I. Khẳng định nào sau đây đúng?",
+                    options: ["I là trung điểm của AM.", "I là trung điểm của SD.", "I là trọng tâm của tam giác SBD.", "I là giao điểm của AM và SB."],
+                    correctAnswer: "I là trung điểm của AM.",
+                    blocks: [BLOCK_LIBRARY.bar3, BLOCK_LIBRARY.pipe5, BLOCK_LIBRARY.smallL],
+                    hardestBlockIndex: 0
+                },
+                {
+                    question: "Cho tứ diện ABCD. Lấy điểm M trên cạnh AB, điểm N trên cạnh CD. Điều kiện cần và đủ để MN và BC chéo nhau là gì?",
+                    options: ["MN không song song với BC.", "MN và BC không có điểm chung.", "M không trùng với A và B.", "N không trùng với C và D."],
+                    correctAnswer: "MN không song song với BC.",
+                    blocks: [BLOCK_LIBRARY.l4, BLOCK_LIBRARY.t5, BLOCK_LIBRARY.bar4],
+                    hardestBlockIndex: 1
+                },
+                {
+                    question: "Cho hình chóp S.ABCD có đáy là hình thang (AB // CD). Gọi M, N lần lượt là trung điểm của SA, SB. Thiết diện của hình chóp cắt bởi mặt phẳng (MND) là hình gì?",
+                    options: ["Hình thang.", "Hình bình hành.", "Tam giác.", "Ngũ giác."],
+                    correctAnswer: "Hình thang.",
+                    blocks: [BLOCK_LIBRARY.u5, BLOCK_LIBRARY.cross, BLOCK_LIBRARY.pentaL],
+                    hardestBlockIndex: 2
+                },
+                {
+                    question: "Trong không gian, mệnh đề nào sau đây là sai?",
+                    options: ["Hai mặt phẳng phân biệt có một điểm chung thì chúng có một đường thẳng chung duy nhất.", "Qua ba điểm không thẳng hàng xác định duy nhất một mặt phẳng.", "Nếu một đường thẳng có hai điểm phân biệt thuộc một mặt phẳng thì mọi điểm của đường thẳng đều thuộc mặt phẳng đó.", "Hai đường thẳng phân biệt không có điểm chung thì chéo nhau."],
+                    correctAnswer: "Hai đường thẳng phân biệt không có điểm chung thì chéo nhau.",
+                    blocks: [BLOCK_LIBRARY.bar5, BLOCK_LIBRARY.pipe4, BLOCK_LIBRARY.l5],
+                    hardestBlockIndex: 0
+                },
+                {
+                    question: "Cho tứ diện ABCD. Gọi I, J lần lượt là trung điểm của AC và BC. K là một điểm trên cạnh BD sao cho KD = 2KB. Giao tuyến của hai mặt phẳng (IJK) và (ACD) là đường thẳng nào?",
+                    options: ["Đường thẳng đi qua I và song song với CD.", "Đường thẳng đi qua A và K.", "Đường thẳng đi qua J và D.", "Đường thẳng đi qua I và K."],
+                    correctAnswer: "Đường thẳng đi qua I và song song với CD.",
+                    blocks: [BLOCK_LIBRARY.z4, BLOCK_LIBRARY.sqr2, BLOCK_LIBRARY.t4],
+                    hardestBlockIndex: 1
+                },
+                {
+                    question: "Cho hình chóp S.ABC. Gọi M, N là hai điểm trên hai cạnh SA, SB sao cho SM = 2MA, SN = 2NB. Tỉ số diện tích của hai tam giác SMN và SAB bằng bao nhiêu?",
+                    options: ["$\\frac{2}{3}$", "$\\frac{4}{9}$", "$\\frac{1}{3}$", "$\\frac{1}{9}$"],
+                    correctAnswer: "$\\frac{4}{9}$",
+                    blocks: [BLOCK_LIBRARY.l3, BLOCK_LIBRARY.domino2, BLOCK_LIBRARY.dot],
+                    hardestBlockIndex: 0
+                },
+                {
+                    question: "Cho hình hộp ABCD.A'B'C'D'. Mặt phẳng (AB'D') song song với mặt phẳng nào sau đây?",
+                    options: ["(A'C'C)", "(BDA')", "(C'BD)", "(ACC'A')"],
+                    correctAnswer: "(C'BD)",
+                    blocks: [BLOCK_LIBRARY.pentaT, BLOCK_LIBRARY.s4, BLOCK_LIBRARY.plus5],
+                    hardestBlockIndex: 2
+                },
+                {
+                    question: "Trong không gian, cho hai đường thẳng song song a và b. Mệnh đề nào sau đây đúng?",
+                    options: ["Tồn tại duy nhất một mặt phẳng chứa cả a và b.", "Không tồn tại mặt phẳng nào chứa cả a và b.", "Có vô số mặt phẳng chứa cả a và b.", "Tồn tại đúng hai mặt phẳng chứa cả a và b."],
+                    correctAnswer: "Tồn tại duy nhất một mặt phẳng chứa cả a và b.",
+                    blocks: [BLOCK_LIBRARY.pentaF, BLOCK_LIBRARY.longZ, BLOCK_LIBRARY.fatL],
+                    hardestBlockIndex: 1
+                },
+                {
+                    question: "Cho tứ diện đều ABCD có cạnh bằng a. Khoảng cách giữa hai đường thẳng AB và CD bằng bao nhiêu?",
+                    options: ["a", "$\\frac{a\\sqrt{2}}{2}$", "$\\frac{a\\sqrt{3}}{2}$", "$\\frac{a}{2}$"],
+                    correctAnswer: "$\\frac{a\\sqrt{2}}{2}$",
+                    blocks: [BLOCK_LIBRARY.smallL, BLOCK_LIBRARY.pipe5, BLOCK_LIBRARY.bar3],
+                    hardestBlockIndex: 0
+                },
+                {
+                    question: "Cho hình chóp S.ABCD có đáy là hình vuông cạnh a, SA vuông góc với đáy, SA = a. Góc giữa đường thẳng SC và mặt phẳng (ABCD) bằng bao nhiêu?",
+                    options: ["$30^\\circ$", "$45^\\circ$", "$60^\\circ$", "$\\arctan(\\frac{1}{\\sqrt{2}})$"],
+                    correctAnswer: "$\\arctan(\\frac{1}{\\sqrt{2}})$",
+                    blocks: [BLOCK_LIBRARY.bar4, BLOCK_LIBRARY.t5, BLOCK_LIBRARY.l4],
+                    hardestBlockIndex: 2
+                },
+                {
+                    question: "Cho lăng trụ tam giác ABC.A'B'C'. Gọi M, N lần lượt là trung điểm của BC và B'C'. Giao tuyến của hai mặt phẳng (A'MN) và (ABC) là đường thẳng nào?",
+                    options: ["Đường thẳng đi qua M và song song với A'N.", "Đường thẳng đi qua A và N.", "Đường thẳng đi qua B và C.", "Đường thẳng đi qua A' và M."],
+                    correctAnswer: "Đường thẳng đi qua M và song song với A'N.",
+                    blocks: [BLOCK_LIBRARY.pentaL, BLOCK_LIBRARY.u5, BLOCK_LIBRARY.cross],
+                    hardestBlockIndex: 1
+                },
+                {
+                    question: "Cho hình chóp S.ABCD, đáy là hình bình hành. Giao tuyến của hai mặt phẳng (SAB) và (SCD) là đường thẳng d. Mệnh đề nào sau đây đúng?",
+                    options: ["d đi qua S và song song với AB, CD.", "d đi qua S và cắt AB, CD.", "d là đường trung bình của hình thang ABCD.", "d trùng với đường thẳng SO, O là tâm đáy."],
+                    correctAnswer: "d đi qua S và song song với AB, CD.",
+                    blocks: [BLOCK_LIBRARY.l5, BLOCK_LIBRARY.bar5, BLOCK_LIBRARY.pipe4],
+                    hardestBlockIndex: 0
+                },
+                {
+                    question: "Trong không gian, cho 4 điểm không đồng phẳng. Có thể xác định được bao nhiêu mặt phẳng phân biệt từ các điểm đã cho?",
+                    options: ["1", "3", "4", "6"],
+                    correctAnswer: "4",
+                    blocks: [BLOCK_LIBRARY.t4, BLOCK_LIBRARY.z4, BLOCK_LIBRARY.sqr2],
+                    hardestBlockIndex: 2
+                },
+                {
+                    question: "Cho hình chóp S.ABC có G là trọng tâm tam giác ABC. Mặt phẳng (P) đi qua G và song song với SA, BC. Thiết diện của hình chóp cắt bởi mặt phẳng (P) là hình gì?",
+                    options: ["Hình bình hành.", "Hình thang.", "Tam giác.", "Ngũ giác."],
+                    correctAnswer: "Hình bình hành.",
+                    blocks: [BLOCK_LIBRARY.dot, BLOCK_LIBRARY.l3, BLOCK_LIBRARY.domino2],
+                    hardestBlockIndex: 1
+                },
+                {
+                    question: "Cho tứ diện ABCD. Gọi M, N lần lượt là trung điểm của AB, CD. P là điểm trên cạnh BC sao cho BP = 2PC. Giao điểm của đường thẳng AC và mặt phẳng (MNP) là điểm I. Tỉ số $\\frac{IA}{IC}$ bằng bao nhiêu?",
+                    options: ["1", "2", "$\\frac{1}{2}$", "$\\frac{1}{3}$"],
+                    correctAnswer: "2",
+                    blocks: [BLOCK_LIBRARY.plus5, BLOCK_LIBRARY.s4, BLOCK_LIBRARY.pentaT],
+                    hardestBlockIndex: 0
+                },
+                {
+                    question: "Cho hình chóp S.ABCD có đáy là hình bình hành tâm O. Gọi M, N lần lượt là trung điểm của SA và SD. Khẳng định nào sau đây sai?",
+                    options: ["MN // (SBC)", "(OMN) // (SBC)", "MN // BC", "Ba điểm S, O, và trung điểm của MN thẳng hàng."],
+                    correctAnswer: "(OMN) // (SBC)",
+                    blocks: [BLOCK_LIBRARY.fatL, BLOCK_LIBRARY.longZ, BLOCK_LIBRARY.pentaF],
+                    hardestBlockIndex: 1
+                },
+                {
+                    question: "Cho hình hộp ABCD.A'B'C'D'. Gọi I là trung điểm của AB. Mặt phẳng (IB'D') cắt hình hộp theo thiết diện là hình gì?",
+                    options: ["Hình bình hành.", "Hình thang.", "Tam giác.", "Ngũ giác."],
+                    correctAnswer: "Ngũ giác.",
+                    blocks: [BLOCK_LIBRARY.smallL, BLOCK_LIBRARY.pipe5, BLOCK_LIBRARY.bar3],
+                    hardestBlockIndex: 0
+                },
+                {
+                    question: "Trong không gian, cho hai mặt phẳng (P) và (Q) cắt nhau theo giao tuyến d. Đường thẳng a nằm trong (P) và song song với d. Vị trí tương đối của a và (Q) là gì?",
+                    options: ["a song song với (Q).", "a cắt (Q).", "a nằm trong (Q).", "a và (Q) chéo nhau."],
+                    correctAnswer: "a song song với (Q).",
+                    blocks: [BLOCK_LIBRARY.bar4, BLOCK_LIBRARY.t5, BLOCK_LIBRARY.l4],
+                    hardestBlockIndex: 2
+                },
+                {
+                    question: "Cho hình chóp S.ABC có đáy là tam giác vuông tại B, AB = a, BC = a$\\sqrt{3}$. SA vuông góc với đáy, SA = 2a. Khoảng cách từ A đến mặt phẳng (SBC) bằng bao nhiêu?",
+                    options: ["a", "$\\frac{2a\\sqrt{3}}{19}$", "$\\frac{2a\\sqrt{57}}{19}$", "$\\frac{a\\sqrt{6}}{3}$"],
+                    correctAnswer: "$\\frac{2a\\sqrt{57}}{19}$",
+                    blocks: [BLOCK_LIBRARY.pentaL, BLOCK_LIBRARY.u5, BLOCK_LIBRARY.cross],
+                    hardestBlockIndex: 1
+                },
+                {
+                    question: "Cho tứ diện ABCD. Gọi M là trung điểm của AB. Mặt phẳng (P) đi qua M và song song với AC, BD. Thiết diện của tứ diện cắt bởi mặt phẳng (P) là hình gì?",
+                    options: ["Hình bình hành.", "Hình thang.", "Hình chữ nhật.", "Hình thoi."],
+                    correctAnswer: "Hình bình hành.",
+                    blocks: [BLOCK_LIBRARY.l5, BLOCK_LIBRARY.bar5, BLOCK_LIBRARY.pipe4],
+                    hardestBlockIndex: 0
+                },
+                {
+                    question: "Cho lăng trụ ABC.A'B'C'. Giao tuyến của hai mặt phẳng (AB'C') và (A'BC) là đường thẳng song song với đường thẳng nào sau đây?",
+                    options: ["AC", "AB", "AA'", "BC"],
+                    correctAnswer: "BC",
+                    blocks: [BLOCK_LIBRARY.t4, BLOCK_LIBRARY.z4, BLOCK_LIBRARY.sqr2],
+                    hardestBlockIndex: 2
+                },
+                {
+                    question: "Cho hình chóp S.ABCD có đáy là hình thang, AB // CD và AB = 2CD. Gọi O là giao điểm của AC và BD. Tỉ số $\\frac{SO}{SI}$ bằng bao nhiêu, với I là giao điểm của AD và BC?",
+                    options: ["$\\frac{1}{2}$", "$\\frac{2}{3}$", "$\\frac{1}{3}$", "$\\frac{4}{3}$"],
+                    correctAnswer: "$\\frac{2}{3}$",
+                    blocks: [BLOCK_LIBRARY.dot, BLOCK_LIBRARY.l3, BLOCK_LIBRARY.domino2],
+                    hardestBlockIndex: 1
+                },
+                {
+                    question: "Trong không gian, có bao nhiêu vị trí tương đối giữa một đường thẳng và một mặt phẳng?",
+                    options: ["1", "2", "3", "4"],
+                    correctAnswer: "3",
+                    blocks: [BLOCK_LIBRARY.plus5, BLOCK_LIBRARY.s4, BLOCK_LIBRARY.pentaT],
+                    hardestBlockIndex: 0
+                },
+                {
+                    question: "Cho hình chóp S.ABCD có đáy là hình chữ nhật. SA vuông góc với đáy. Gọi H, K lần lượt là hình chiếu của A lên SB, SD. Mặt phẳng (AHK) cắt SC tại I. Tỉ số $\\frac{SI}{SC}$ bằng bao nhiêu?",
+                    options: ["$\\frac{SA^2}{SA^2+AB^2+AD^2}$", "$\\frac{SA^2}{SA^2+AC^2}$", "$\\frac{SA^2}{SA^2+BC^2}$", "$\\frac{SA^2}{SA^2+BD^2}$"],
+                    correctAnswer: "$\\frac{SA^2}{SA^2+AB^2+AD^2}$",
+                    blocks: [BLOCK_LIBRARY.fatL, BLOCK_LIBRARY.longZ, BLOCK_LIBRARY.pentaF],
+                    hardestBlockIndex: 1
+                },
+                {
+                    question: "Cho tứ diện ABCD. Gọi M, N lần lượt là trung điểm của AB và AC. P là điểm trên cạnh AD sao cho AP = 2PD. Giao điểm của đường thẳng MN và mặt phẳng (BCP) là điểm I. Tỉ số $\\frac{IM}{IN}$ bằng bao nhiêu?",
+                    options: ["1", "2", "$\\frac{1}{2}$", "$\\frac{1}{3}$"],
+                    correctAnswer: "1",
+                    blocks: [BLOCK_LIBRARY.smallL, BLOCK_LIBRARY.pipe5, BLOCK_LIBRARY.bar3],
+                    hardestBlockIndex: 0
+                },
+                {
+                    question: "Cho hình chóp S.ABCD có đáy là hình vuông cạnh a. Cạnh bên SA vuông góc với đáy và SA = a$\\sqrt{2}$. Góc giữa hai mặt phẳng (SBC) và (ABCD) bằng bao nhiêu?",
+                    options: ["$30^\\circ$", "$45^\\circ$", "$60^\\circ$", "$\\arctan(\\sqrt{2})$"],
+                    correctAnswer: "$\\arctan(\\sqrt{2})$",
+                    blocks: [BLOCK_LIBRARY.bar4, BLOCK_LIBRARY.t5, BLOCK_LIBRARY.l4],
+                    hardestBlockIndex: 2
+                },
+                {
+                    question: "Cho lăng trụ đứng ABC.A'B'C' có đáy là tam giác đều cạnh a. Cạnh bên AA' = a$\\sqrt{3}$. Góc giữa đường thẳng A'B và mặt phẳng (ABC) bằng bao nhiêu?",
+                    options: ["$30^\\circ$", "$45^\\circ$", "$60^\\circ$", "$90^\\circ$"],
+                    correctAnswer: "$60^\\circ$",
+                    blocks: [BLOCK_LIBRARY.pentaL, BLOCK_LIBRARY.u5, BLOCK_LIBRARY.cross],
+                    hardestBlockIndex: 1
+                },
+                {
+                    question: "Trong không gian, cho đường thẳng d và mặt phẳng (P) song song với nhau. Mệnh đề nào sau đây đúng?",
+                    options: ["Tồn tại trong (P) một đường thẳng duy nhất song song với d.", "Tồn tại trong (P) một đường thẳng duy nhất cắt d.", "Mọi đường thẳng trong (P) đều song song với d.", "Nếu một mặt phẳng (Q) chứa d và cắt (P) theo giao tuyến d' thì d' song song với d."],
+                    correctAnswer: "Nếu một mặt phẳng (Q) chứa d và cắt (P) theo giao tuyến d' thì d' song song với d.",
+                    blocks: [BLOCK_LIBRARY.l5, BLOCK_LIBRARY.bar5, BLOCK_LIBRARY.pipe4],
+                    hardestBlockIndex: 0
+                },
+                {
+                    question: "Cho hình chóp S.ABCD có đáy là hình thoi cạnh a, góc BAD bằng $60^\\circ$. SA vuông góc với đáy, SA = a. Khoảng cách từ B đến mặt phẳng (SCD) bằng bao nhiêu?",
+                    options: ["$\\frac{a\\sqrt{21}}{7}$", "$\\frac{a\\sqrt{3}}{2}$", "a", "$\\frac{2a}{\\sqrt{7}}$"],
+                    correctAnswer: "$\\frac{a\\sqrt{21}}{7}$",
+                    blocks: [BLOCK_LIBRARY.t4, BLOCK_LIBRARY.z4, BLOCK_LIBRARY.sqr2],
+                    hardestBlockIndex: 2
+                },
+                {
+                    question: "Cho tứ diện OABC có OA, OB, OC đôi một vuông góc. H là hình chiếu của O lên mặt phẳng (ABC). Mệnh đề nào sau đây sai?",
+                    options: ["H là trực tâm của tam giác ABC.", "$\\frac{1}{OH^2}=\\frac{1}{OA^2}+\\frac{1}{OB^2}+\\frac{1}{OC^2}$", "Tam giác ABC là tam giác vuông.", "Thể tích khối tứ diện OABC bằng $\\frac{1}{6}OA.OB.OC$."],
+                    correctAnswer: "Tam giác ABC là tam giác vuông.",
+                    blocks: [BLOCK_LIBRARY.dot, BLOCK_LIBRARY.l3, BLOCK_LIBRARY.domino2],
+                    hardestBlockIndex: 1
+                },
+                {
+                    question: "Cho hình lập phương ABCD.A'B'C'D'. Góc giữa hai đường thẳng AC và A'B' bằng bao nhiêu?",
+                    options: ["$30^\\circ$", "$45^\\circ$", "$60^\\circ$", "$90^\\circ$"],
+                    correctAnswer: "$45^\\circ$",
+                    blocks: [BLOCK_LIBRARY.plus5, BLOCK_LIBRARY.s4, BLOCK_LIBRARY.pentaT],
+                    hardestBlockIndex: 0
+                },
+                {
+                    question: "Cho hình chóp S.ABCD có đáy là hình chữ nhật, AB = a, AD = 2a. SA vuông góc với đáy, SA = a. M là trung điểm của CD. Khoảng cách giữa hai đường thẳng SB và AM bằng bao nhiêu?",
+                    options: ["$\\frac{a\\sqrt{2}}{3}$", "a", "$\\frac{2a}{3}$", "$\\frac{a}{2}$"],
+                    correctAnswer: "$\\frac{a\\sqrt{2}}{3}$",
+                    blocks: [BLOCK_LIBRARY.fatL, BLOCK_LIBRARY.longZ, BLOCK_LIBRARY.pentaF],
+                    hardestBlockIndex: 1
+                },
+                {
+                    question: "Trong không gian, mệnh đề nào sau đây đúng?",
+                    options: ["Nếu hai mặt phẳng song song với một đường thẳng thì chúng song song với nhau.", "Nếu hai đường thẳng cùng song song với một mặt phẳng thì chúng song song với nhau.", "Nếu một đường thẳng song song với một trong hai mặt phẳng song song thì nó song song với mặt phẳng còn lại.", "Nếu một đường thẳng cắt một trong hai mặt phẳng song song thì nó cắt mặt phẳng còn lại."],
+                    correctAnswer: "Nếu một đường thẳng cắt một trong hai mặt phẳng song song thì nó cắt mặt phẳng còn lại.",
+                    blocks: [BLOCK_LIBRARY.smallL, BLOCK_LIBRARY.pipe5, BLOCK_LIBRARY.bar3],
+                    hardestBlockIndex: 0
+                },
+                {
+                    question: "Cho hình chóp tam giác đều S.ABC có cạnh đáy bằng a, cạnh bên bằng 2a. Góc giữa cạnh bên và mặt đáy bằng bao nhiêu?",
+                    options: ["$\\arccos(\\frac{\\sqrt{3}}{6})$", "$30^\\circ$", "$45^\\circ$", "$60^\\circ$"],
+                    correctAnswer: "$\\arccos(\\frac{\\sqrt{3}}{6})$",
+                    blocks: [BLOCK_LIBRARY.bar4, BLOCK_LIBRARY.t5, BLOCK_LIBRARY.l4],
+                    hardestBlockIndex: 2
+                },
+                {
+                    question: "Cho tứ diện ABCD. Gọi M, N lần lượt là trọng tâm của các tam giác ABC và ABD. Mệnh đề nào sau đây đúng?",
+                    options: ["MN song song với CD.", "MN cắt CD.", "MN và CD chéo nhau.", "MN vuông góc với CD."],
+                    correctAnswer: "MN song song với CD.",
+                    blocks: [BLOCK_LIBRARY.pentaL, BLOCK_LIBRARY.u5, BLOCK_LIBRARY.cross],
+                    hardestBlockIndex: 1
+                },
+                {
+                    question: "Cho hình chóp S.ABCD có đáy là hình bình hành. Gọi M, N, P lần lượt là trung điểm của các cạnh AB, CD, SA. Thiết diện của hình chóp cắt bởi mặt phẳng (MNP) là hình gì?",
+                    options: ["Ngũ giác.", "Tứ giác.", "Tam giác.", "Lục giác."],
+                    correctAnswer: "Ngũ giác.",
+                    blocks: [BLOCK_LIBRARY.l5, BLOCK_LIBRARY.bar5, BLOCK_LIBRARY.pipe4],
+                    hardestBlockIndex: 0
+                },
+                {
+                    question: "Cho lăng trụ ABC.A'B'C'. Gọi M là trung điểm của CC'. Giao điểm của đường thẳng A'M và mặt phẳng (ABC) là điểm I. Mệnh đề nào sau đây đúng?",
+                    options: ["I là trung điểm của BC.", "I là điểm C.", "I là trọng tâm của tam giác ABC.", "I không thuộc mặt phẳng (ABC)."],
+                    correctAnswer: "I là điểm C.",
+                    blocks: [BLOCK_LIBRARY.t4, BLOCK_LIBRARY.z4, BLOCK_LIBRARY.sqr2],
+                    hardestBlockIndex: 2
+                },
+                {
+                    question: "Trong không gian, cho ba mặt phẳng phân biệt (P), (Q), (R). Mệnh đề nào sau đây sai?",
+                    options: ["Nếu (P) // (Q) và (Q) // (R) thì (P) // (R).", "Nếu (P) cắt (Q) và (Q) cắt (R) thì (P) có thể song song với (R).", "Nếu (P) // (Q) và (R) cắt (P) thì (R) cũng cắt (Q).", "Nếu (P), (Q), (R) đôi một cắt nhau theo ba giao tuyến phân biệt thì ba giao tuyến đó hoặc đồng quy hoặc đôi một song song."],
+                    correctAnswer: "Nếu (P), (Q), (R) đôi một cắt nhau theo ba giao tuyến phân biệt thì ba giao tuyến đó hoặc đồng quy hoặc đôi một song song.",
+                    blocks: [BLOCK_LIBRARY.dot, BLOCK_LIBRARY.l3, BLOCK_LIBRARY.domino2],
+                    hardestBlockIndex: 1
+                },
+                {
+                    question: "Cho hình chóp S.ABCD có đáy là hình thang, đáy lớn AD = 2BC. Gọi M, N lần lượt là trung điểm của SA, SD. Tỉ số thể tích của khối chóp S.BCNM và khối chóp S.ABCD bằng bao nhiêu?",
+                    options: ["$\\frac{1}{4}$", "$\\frac{3}{8}$", "$\\frac{1}{2}$", "$\\frac{5}{8}$"],
+                    correctAnswer: "$\\frac{3}{8}$",
+                    blocks: [BLOCK_LIBRARY.plus5, BLOCK_LIBRARY.s4, BLOCK_LIBRARY.pentaT],
+                    hardestBlockIndex: 0
+                },
+                {
+                    question: "Cho tứ diện ABCD. Trên các cạnh AB, AC, AD lần lượt lấy các điểm M, N, P sao cho AM = $\\frac{1}{3}$AB, AN = $\\frac{1}{3}$AC, AP = $\\frac{1}{3}$AD. Tỉ số thể tích của khối tứ diện AMNP và khối tứ diện ABCD bằng bao nhiêu?",
+                    options: ["$\\frac{1}{3}$", "$\\frac{1}{9}$", "$\\frac{1}{27}$", "$\\frac{1}{81}$"],
+                    correctAnswer: "$\\frac{1}{27}$",
+                    blocks: [BLOCK_LIBRARY.fatL, BLOCK_LIBRARY.longZ, BLOCK_LIBRARY.pentaF],
+                    hardestBlockIndex: 1
+                },
+                {
+                    question: "Cho hình hộp chữ nhật ABCD.A'B'C'D' có AB = a, AD = b, AA' = c. Khoảng cách giữa hai đường thẳng AB và B'D' bằng bao nhiêu?",
+                    options: ["c", "b", "a", "$\\sqrt{a^2+b^2}$"],
+                    correctAnswer: "c",
+                    blocks: [BLOCK_LIBRARY.smallL, BLOCK_LIBRARY.pipe5, BLOCK_LIBRARY.bar3],
+                    hardestBlockIndex: 0
+                },
+                {
+                    question: "Cho hình chóp S.ABC có đáy là tam giác đều cạnh a. Mặt bên (SAB) là tam giác đều và nằm trong mặt phẳng vuông góc với đáy. Thể tích khối chóp S.ABC bằng bao nhiêu?",
+                    options: ["$\\frac{a^3\\sqrt{3}}{12}$", "$\\frac{a^3\\sqrt{3}}{4}$", "$\\frac{a^3}{4}$", "$\\frac{a^3\\sqrt{3}}{6}$"],
+                    correctAnswer: "$\\frac{a^3\\sqrt{3}}{12}$",
+                    blocks: [BLOCK_LIBRARY.bar4, BLOCK_LIBRARY.t5, BLOCK_LIBRARY.l4],
+                    hardestBlockIndex: 2
+                },
+                {
+                    question: "Trong không gian, cho hai đường thẳng chéo nhau a và b. Có bao nhiêu mặt phẳng chứa a và song song với b?",
+                    options: ["0", "1", "2", "Vô số"],
+                    correctAnswer: "1",
+                    blocks: [BLOCK_LIBRARY.pentaL, BLOCK_LIBRARY.u5, BLOCK_LIBRARY.cross],
+                    hardestBlockIndex: 1
+                },
+                {
+                    question: "Cho hình chóp S.ABCD có đáy là hình vuông cạnh a. Cạnh bên SA vuông góc với đáy. Góc giữa hai mặt phẳng (SBC) và (SCD) bằng $60^\\circ$. Tính SA.",
+                    options: ["a", "$a\\sqrt{2}$", "$a\\sqrt{3}$", "2a"],
+                    correctAnswer: "a",
+                    blocks: [BLOCK_LIBRARY.l5, BLOCK_LIBRARY.bar5, BLOCK_LIBRARY.pipe4],
+                    hardestBlockIndex: 0
+                },
+                {
+                    question: "Cho tứ diện ABCD có AB = CD = a, AC = BD = b, AD = BC = c. Thể tích khối tứ diện ABCD bằng bao nhiêu?",
+                    options: ["$\\frac{\\sqrt{2}}{12}\\sqrt{(a^2+b^2-c^2)(a^2+c^2-b^2)(b^2+c^2-a^2)}$", "$\\frac{abc}{6}$", "$\\frac{1}{3}abc$", "$\\frac{\\sqrt{3}}{4}abc$"],
+                    correctAnswer: "$\\frac{\\sqrt{2}}{12}\\sqrt{(a^2+b^2-c^2)(a^2+c^2-b^2)(b^2+c^2-a^2)}$",
+                    blocks: [BLOCK_LIBRARY.t4, BLOCK_LIBRARY.z4, BLOCK_LIBRARY.sqr2],
+                    hardestBlockIndex: 2
+                },
+                {
+                    question: "Cho hình chóp S.ABCD có đáy là hình thang vuông tại A và D, AD = CD = a, AB = 2a. SA vuông góc với đáy. Góc giữa hai mặt phẳng (SBC) và (ABCD) bằng $45^\\circ$. Tính thể tích khối chóp S.ABCD.",
+                    options: ["$\\frac{a^3}{2}$", "$\\frac{a^3}{3}$", "$\\frac{a^3\\sqrt{3}}{6}$", "$\\frac{a^3\\sqrt{2}}{3}$"],
+                    correctAnswer: "$\\frac{a^3}{2}$",
+                    blocks: [BLOCK_LIBRARY.dot, BLOCK_LIBRARY.l3, BLOCK_LIBRARY.domino2],
+                    hardestBlockIndex: 1
+                },
+                {
+                    question: "Cho lăng trụ tam giác đều ABC.A'B'C' có tất cả các cạnh bằng a. Khoảng cách từ điểm A đến mặt phẳng (A'BC) bằng bao nhiêu?",
+                    options: ["$\\frac{a\\sqrt{21}}{7}$", "a", "$\\frac{a\\sqrt{3}}{2}$", "$\\frac{a}{2}$"],
+                    correctAnswer: "$\\frac{a\\sqrt{21}}{7}$",
+                    blocks: [BLOCK_LIBRARY.plus5, BLOCK_LIBRARY.s4, BLOCK_LIBRARY.pentaT],
+                    hardestBlockIndex: 0
+                },
+                {
+                    question: "Trong không gian, cho hai mặt phẳng (P) và (Q) vuông góc với nhau. Mệnh đề nào sau đây đúng?",
+                    options: ["Nếu đường thẳng a nằm trong (P) và vuông góc với giao tuyến của (P) và (Q) thì a vuông góc với (Q).", "Mọi đường thẳng nằm trong (P) đều vuông góc với mọi đường thẳng nằm trong (Q).", "Nếu đường thẳng a song song với (P) thì a vuông góc với (Q).", "Nếu đường thẳng a vuông góc với (P) thì a song song với (Q)."],
+                    correctAnswer: "Nếu đường thẳng a nằm trong (P) và vuông góc với giao tuyến của (P) và (Q) thì a vuông góc với (Q).",
+                    blocks: [BLOCK_LIBRARY.fatL, BLOCK_LIBRARY.longZ, BLOCK_LIBRARY.pentaF],
+                    hardestBlockIndex: 1
+                },
+                {
+                    question: "Cho hình chóp S.ABCD có đáy là hình vuông cạnh a. Cạnh bên SA vuông góc với đáy và SA = 2a. Gọi M là trung điểm của SC. Khoảng cách từ M đến mặt phẳng (ABCD) bằng bao nhiêu?",
+                    options: ["a", "2a", "$\\frac{a}{2}$", "$\\frac{3a}{2}$"],
+                    correctAnswer: "a",
+                    blocks: [BLOCK_LIBRARY.smallL, BLOCK_LIBRARY.pipe5, BLOCK_LIBRARY.bar3],
+                    hardestBlockIndex: 0
+                },
+                {
+                    question: "Cho tứ diện ABCD có thể tích V. Gọi M, N, P lần lượt là trung điểm của các cạnh AB, AC, AD. Thể tích khối tứ diện AMNP bằng bao nhiêu?",
+                    options: ["$\\frac{V}{2}$", "$\\frac{V}{4}$", "$\\frac{V}{8}$", "$\\frac{V}{16}$"],
+                    correctAnswer: "$\\frac{V}{8}$",
+                    blocks: [BLOCK_LIBRARY.bar4, BLOCK_LIBRARY.t5, BLOCK_LIBRARY.l4],
+                    hardestBlockIndex: 2
+                },
+                {
+                    question: "Cho hình lập phương ABCD.A'B'C'D' có cạnh bằng a. Khoảng cách giữa hai đường thẳng A'B và B'D bằng bao nhiêu?",
+                    options: ["$\\frac{a\\sqrt{3}}{3}$", "a", "$\\frac{a\\sqrt{2}}{2}$", "$\\frac{a}{2}$"],
+                    correctAnswer: "$\\frac{a\\sqrt{3}}{3}$",
+                    blocks: [BLOCK_LIBRARY.pentaL, BLOCK_LIBRARY.u5, BLOCK_LIBRARY.cross],
+                    hardestBlockIndex: 1
+                },
+                {
+                    question: "Cho hình chóp S.ABC có đáy là tam giác vuông cân tại B, AB = a. SA vuông góc với đáy. Góc giữa hai mặt phẳng (SAC) và (SBC) bằng $60^\\circ$. Tính thể tích khối chóp S.ABC.",
+                    options: ["$\\frac{a^3}{6}$", "$\\frac{a^3}{3}$", "$\\frac{a^3\\sqrt{3}}{6}$", "$\\frac{a^3\\sqrt{2}}{3}$"],
+                    correctAnswer: "$\\frac{a^3}{6}$",
+                    blocks: [BLOCK_LIBRARY.l5, BLOCK_LIBRARY.bar5, BLOCK_LIBRARY.pipe4],
+                    hardestBlockIndex: 0
+                },
+                {
+                    question: "Trong không gian, cho đường thẳng a và điểm M không thuộc a. Có bao nhiêu đường thẳng đi qua M và chéo với a?",
+                    options: ["0", "1", "2", "Vô số"],
+                    correctAnswer: "Vô số",
+                    blocks: [BLOCK_LIBRARY.t4, BLOCK_LIBRARY.z4, BLOCK_LIBRARY.sqr2],
+                    hardestBlockIndex: 2
+                },
+                {
+                    question: "Cho hình chóp tứ giác đều S.ABCD có cạnh đáy bằng a, cạnh bên bằng a$\\sqrt{2}$. Khoảng cách từ A đến mặt phẳng (SBC) bằng bao nhiêu?",
+                    options: ["$\\frac{a\\sqrt{14}}{7}$", "a", "$\\frac{a\\sqrt{7}}{2}$", "$\\frac{a\\sqrt{2}}{2}$"],
+                    correctAnswer: "$\\frac{a\\sqrt{14}}{7}$",
+                    blocks: [BLOCK_LIBRARY.dot, BLOCK_LIBRARY.l3, BLOCK_LIBRARY.domino2],
+                    hardestBlockIndex: 1
+                },
+                {
+                    question: "Cho tứ diện ABCD. Gọi M, N lần lượt là trung điểm của BC, BD. P là điểm trên cạnh AC sao cho AP = 3PC. Giao điểm của đường thẳng CD và mặt phẳng (MNP) là điểm I. Tỉ số $\\frac{IC}{ID}$ bằng bao nhiêu?",
+                    options: ["1", "2", "3", "4"],
+                    correctAnswer: "3",
+                    blocks: [BLOCK_LIBRARY.plus5, BLOCK_LIBRARY.s4, BLOCK_LIBRARY.pentaT],
+                    hardestBlockIndex: 0
+                },
+                {
+                    question: "Cho hình chóp S.ABCD có đáy là hình vuông. SA vuông góc với đáy. Mệnh đề nào sau đây sai?",
+                    options: ["BC $\\perp$ (SAB)", "CD $\\perp$ (SAD)", "BD $\\perp$ (SAC)", "AC $\\perp$ (SBD)"],
+                    correctAnswer: "AC $\\perp$ (SBD)",
+                    blocks: [BLOCK_LIBRARY.fatL, BLOCK_LIBRARY.longZ, BLOCK_LIBRARY.pentaF],
+                    hardestBlockIndex: 1
+                },
+                {
+                    question: "Cho lăng trụ đứng ABC.A'B'C' có đáy là tam giác vuông tại A, AB = a, AC = a$\\sqrt{3}$, AA' = 2a. Thể tích khối lăng trụ bằng bao nhiêu?",
+                    options: ["$a^3\\sqrt{3}$", "$\\frac{a^3\\sqrt{3}}{3}$", "$\\frac{2a^3\\sqrt{3}}{3}$", "$\\frac{3a^3\\sqrt{3}}{2}$"],
+                    correctAnswer: "$a^3\\sqrt{3}$",
+                    blocks: [BLOCK_LIBRARY.smallL, BLOCK_LIBRARY.pipe5, BLOCK_LIBRARY.bar3],
+                    hardestBlockIndex: 0
+                },
+                {
+                    question: "Trong không gian, cho hai đường thẳng song song a và b. Mặt phẳng (P) cắt a. Khi đó, (P) có cắt b không?",
+                    options: ["Luôn luôn cắt.", "Không bao giờ cắt.", "Có thể cắt hoặc không.", "Không đủ dữ kiện để kết luận."],
+                    correctAnswer: "Có thể cắt hoặc không.",
+                    blocks: [BLOCK_LIBRARY.bar4, BLOCK_LIBRARY.t5, BLOCK_LIBRARY.l4],
+                    hardestBlockIndex: 2
+                },
+                {
+                    question: "Cho hình chóp S.ABCD có đáy là hình chữ nhật, AB = a, AD = 2a. Các cạnh bên bằng nhau và bằng a$\\sqrt{5}$. Thể tích khối chóp S.ABCD bằng bao nhiêu?",
+                    options: ["$\\frac{2a^3\\sqrt{15}}{3}$", "$\\frac{2a^3\\sqrt{5}}{3}$", "$\\frac{4a^3}{3}$", "$\\frac{2a^3}{3}$"],
+                    correctAnswer: "$\\frac{4a^3}{3}$",
+                    blocks: [BLOCK_LIBRARY.pentaL, BLOCK_LIBRARY.u5, BLOCK_LIBRARY.cross],
+                    hardestBlockIndex: 1
+                },
+                {
+                    question: "Cho tứ diện ABCD có G là trọng tâm. Mệnh đề nào sau đây đúng?",
+                    options: ["$\\vec{GA}+\\vec{GB}+\\vec{GC}+\\vec{GD}=\\vec{0}$", "$\\vec{GA}+\\vec{GB}+\\vec{GC}=\\vec{GD}$", "GA=GB=GC=GD", "G là trung điểm của đoạn nối hai trung điểm của hai cạnh đối."],
+                    correctAnswer: "$\\vec{GA}+\\vec{GB}+\\vec{GC}+\\vec{GD}=\\vec{0}$",
+                    blocks: [BLOCK_LIBRARY.l5, BLOCK_LIBRARY.bar5, BLOCK_LIBRARY.pipe4],
+                    hardestBlockIndex: 0
+                },
+                {
+                    question: "Cho hình hộp ABCD.A'B'C'D'. Tỉ số thể tích của khối tứ diện ACB'D' và khối hộp bằng bao nhiêu?",
+                    options: ["$\\frac{1}{3}$", "$\\frac{1}{2}$", "$\\frac{1}{4}$", "$\\frac{1}{6}$"],
+                    correctAnswer: "$\\frac{1}{3}$",
+                    blocks: [BLOCK_LIBRARY.t4, BLOCK_LIBRARY.z4, BLOCK_LIBRARY.sqr2],
+                    hardestBlockIndex: 2
+                },
+                {
+                    question: "Cho hình chóp S.ABCD có đáy là hình vuông cạnh a. Tam giác SAB đều và nằm trong mặt phẳng vuông góc với đáy. Góc giữa hai đường thẳng SB và CD bằng bao nhiêu?",
+                    options: ["$30^\\circ$", "$45^\\circ$", "$60^\\circ$", "$90^\\circ$"],
+                    correctAnswer: "$60^\\circ$",
+                    blocks: [BLOCK_LIBRARY.dot, BLOCK_LIBRARY.l3, BLOCK_LIBRARY.domino2],
+                    hardestBlockIndex: 1
+                },
+                {
+                    question: "Trong không gian, cho 5 điểm không đồng phẳng. Có thể xác định được bao nhiêu mặt phẳng phân biệt từ các điểm đã cho?",
+                    options: ["5", "10", "15", "20"],
+                    correctAnswer: "10",
+                    blocks: [BLOCK_LIBRARY.plus5, BLOCK_LIBRARY.s4, BLOCK_LIBRARY.pentaT],
+                    hardestBlockIndex: 0
+                },
+                {
+                    question: "Cho hình chóp S.ABCD có đáy là hình thoi cạnh a, góc ABC bằng $120^\\circ$. SA vuông góc với đáy. Góc giữa hai mặt phẳng (SBC) và (SCD) bằng $60^\\circ$. Tính thể tích khối chóp S.ABCD.",
+                    options: ["$\\frac{a^3\\sqrt{3}}{12}$", "$\\frac{a^3\\sqrt{3}}{6}$", "$\\frac{a^3}{4}$", "$\\frac{a^3}{2}$"],
+                    correctAnswer: "$\\frac{a^3\\sqrt{3}}{12}$",
+                    blocks: [BLOCK_LIBRARY.fatL, BLOCK_LIBRARY.longZ, BLOCK_LIBRARY.pentaF],
+                    hardestBlockIndex: 1
+                },
+                {
+                    question: "Cho tứ diện ABCD. Gọi M, N lần lượt là trung điểm của BC, BD. P là điểm trên cạnh AC sao cho AP = 3PC. Giao điểm của đường thẳng CD và mặt phẳng (MNP) là điểm I. Tỉ số $\\frac{IC}{ID}$ bằng bao nhiêu?",
+                    options: ["1", "2", "3", "4"],
+                    correctAnswer: "3",
+                    blocks: [BLOCK_LIBRARY.smallL, BLOCK_LIBRARY.pipe5, BLOCK_LIBRARY.bar3],
+                    hardestBlockIndex: 0
+                },
+                {
+                    question: "Cho hình chóp S.ABC có đáy là tam giác vuông tại A, AB = a, AC = 2a. SA vuông góc với đáy, SA = a. Thể tích khối cầu ngoại tiếp hình chóp S.ABC bằng bao nhiêu?",
+                    options: ["$\\frac{4\\pi a^3\\sqrt{6}}{9}$", "$\\frac{9\\pi a^3}{2}$", "$\\frac{3\\pi a^3}{2}$", "$\\frac{27\\pi a^3}{8}$"],
+                    correctAnswer: "$\\frac{9\\pi a^3}{2}$",
+                    blocks: [BLOCK_LIBRARY.bar4, BLOCK_LIBRARY.t5, BLOCK_LIBRARY.l4],
+                    hardestBlockIndex: 2
+                },
+                {
+                    question: "Cho lăng trụ ABC.A'B'C'. Thiết diện của lăng trụ cắt bởi mặt phẳng đi qua A và vuông góc với B'C là hình gì?",
+                    options: ["Hình bình hành.", "Hình chữ nhật.", "Hình thang.", "Phụ thuộc vào dạng của lăng trụ."],
+                    correctAnswer: "Phụ thuộc vào dạng của lăng trụ.",
+                    blocks: [BLOCK_LIBRARY.pentaL, BLOCK_LIBRARY.u5, BLOCK_LIBRARY.cross],
+                    hardestBlockIndex: 1
+                },
+                {
+                    question: "Trong không gian, cho hai mặt phẳng (P) và (Q) song song với nhau. Đường thẳng a nằm trong (P). Mệnh đề nào sau đây đúng?",
+                    options: ["a song song với mọi đường thẳng trong (Q).", "a cắt mọi đường thẳng trong (Q).", "a song song với (Q).", "a nằm trong (Q)."],
+                    correctAnswer: "a song song với (Q).",
+                    blocks: [BLOCK_LIBRARY.l5, BLOCK_LIBRARY.bar5, BLOCK_LIBRARY.pipe4],
+                    hardestBlockIndex: 0
+                },
+                {
+                    question: "Cho hình chóp S.ABCD có đáy là hình vuông cạnh a. Cạnh bên SA vuông góc với đáy, SA = a$\\sqrt{6}$. Khoảng cách từ trọng tâm G của tam giác SAB đến mặt phẳng (SAC) bằng bao nhiêu?",
+                    options: ["$\\frac{a\\sqrt{2}}{6}$", "$\\frac{a\\sqrt{2}}{3}$", "$\\frac{a\\sqrt{2}}{2}$", "$\\frac{a\\sqrt{6}}{3}$"],
+                    correctAnswer: "$\\frac{a\\sqrt{2}}{6}$",
+                    blocks: [BLOCK_LIBRARY.t4, BLOCK_LIBRARY.z4, BLOCK_LIBRARY.sqr2],
+                    hardestBlockIndex: 2
+                },
+                {
+                    question: "Cho tứ diện ABCD có AB $\\perp$ CD và AC $\\perp$ BD. Mệnh đề nào sau đây đúng?",
+                    options: ["AD $\\perp$ BC.", "AB $\\perp$ AC.", "CD $\\perp$ BD.", "Tứ diện ABCD là tứ diện đều."],
+                    correctAnswer: "AD $\\perp$ BC.",
+                    blocks: [BLOCK_LIBRARY.dot, BLOCK_LIBRARY.l3, BLOCK_LIBRARY.domino2],
+                    hardestBlockIndex: 1
+                },
+                {
+                    question: "Cho hình hộp chữ nhật ABCD.A'B'C'D' có AB = a, AD = 2a, AA' = 3a. Thể tích khối tứ diện A'ABD bằng bao nhiêu?",
+                    options: ["$a^3$", "$2a^3$", "$3a^3$", "$6a^3$"],
+                    correctAnswer: "$a^3$",
+                    blocks: [BLOCK_LIBRARY.plus5, BLOCK_LIBRARY.s4, BLOCK_LIBRARY.pentaT],
+                    hardestBlockIndex: 0
+                },
+                {
+                    question: "Cho hình chóp S.ABCD có đáy là hình bình hành. Gọi M, N lần lượt là trung điểm của AB, SC. Giao tuyến của hai mặt phẳng (SBD) và (MND) là đường thẳng đi qua D và điểm nào sau đây?",
+                    options: ["Trung điểm của SB.", "Trung điểm của SA.", "Trung điểm của SD.", "Tâm của đáy."],
+                    correctAnswer: "Trung điểm của SB.",
+                    blocks: [BLOCK_LIBRARY.fatL, BLOCK_LIBRARY.longZ, BLOCK_LIBRARY.pentaF],
+                    hardestBlockIndex: 1
+                },
+                {
+                    question: "Trong không gian, cho 6 điểm không đồng phẳng. Có thể xác định được bao nhiêu đường thẳng phân biệt từ các điểm đã cho?",
+                    options: ["15", "20", "30", "10"],
+                    correctAnswer: "15",
+                    blocks: [BLOCK_LIBRARY.smallL, BLOCK_LIBRARY.pipe5, BLOCK_LIBRARY.bar3],
+                    hardestBlockIndex: 0
+                },
+                {
+                    question: "Cho hình chóp S.ABCD có đáy là hình thang, AB // CD, AB = 3a, CD = a. Các cạnh bên bằng nhau. Thể tích khối chóp S.ABCD bằng $2a^3\\sqrt{2}$. Tính chiều cao của hình chóp.",
+                    options: ["$a\\sqrt{2}$", "2a", "a", "3a"],
+                    correctAnswer: "$a\\sqrt{2}$",
+                    blocks: [BLOCK_LIBRARY.bar4, BLOCK_LIBRARY.t5, BLOCK_LIBRARY.l4],
+                    hardestBlockIndex: 2
+                },
+                {
+                    question: "Cho tứ diện ABCD. Gọi I, J, K lần lượt là trung điểm của AB, AC, AD. Tỉ số thể tích của khối tứ diện AIJK và khối tứ diện ABCD bằng bao nhiêu?",
+                    options: ["$\\frac{1}{2}$", "$\\frac{1}{4}$", "$\\frac{1}{8}$", "$\\frac{1}{16}$"],
+                    correctAnswer: "$\\frac{1}{8}$",
+                    blocks: [BLOCK_LIBRARY.pentaL, BLOCK_LIBRARY.u5, BLOCK_LIBRARY.cross],
+                    hardestBlockIndex: 1
+                },
+                {
+                    question: "Cho hình chóp S.ABCD có đáy là hình vuông cạnh a. Cạnh bên SA vuông góc với đáy. Góc giữa đường thẳng SB và mặt phẳng (SAC) bằng $30^\\circ$. Tính SA.",
+                    options: ["a", "$a\\sqrt{2}$", "$a\\sqrt{3}$", "2a"],
+                    correctAnswer: "a",
+                    blocks: [BLOCK_LIBRARY.l5, BLOCK_LIBRARY.bar5, BLOCK_LIBRARY.pipe4],
+                    hardestBlockIndex: 0
+                },
+                {
+                    question: "Cho lăng trụ ABC.A'B'C' có đáy là tam giác đều. Hình chiếu của A' lên mặt phẳng (ABC) là trung điểm của BC. Góc giữa hai mặt phẳng (A'BC) và (ABC) bằng $60^\\circ$. Tính thể tích khối lăng trụ.",
+                    options: ["$\\frac{3a^3}{8}$", "$\\frac{3a^3\\sqrt{3}}{8}$", "$\\frac{a^3\\sqrt{3}}{4}$", "$\\frac{a^3}{2}$"],
+                    correctAnswer: "$\\frac{3a^3}{8}$",
+                    blocks: [BLOCK_LIBRARY.t4, BLOCK_LIBRARY.z4, BLOCK_LIBRARY.sqr2],
+                    hardestBlockIndex: 2
+                },
+                {
+                    question: "Trong không gian, cho hai đường thẳng a và b chéo nhau. Có bao nhiêu đường thẳng c cắt cả a và b?",
+                    options: ["0", "1", "2", "Vô số"],
+                    correctAnswer: "Vô số",
+                    blocks: [BLOCK_LIBRARY.dot, BLOCK_LIBRARY.l3, BLOCK_LIBRARY.domino2],
+                    hardestBlockIndex: 1
+                },
+                {
+                    question: "Cho hình chóp S.ABCD có đáy là hình chữ nhật, AB = a, AD = a$\\sqrt{3}$. SA vuông góc với đáy. Góc giữa hai mặt phẳng (SBC) và (SCD) bằng $60^\\circ$. Tính thể tích khối chóp S.ABCD.",
+                    options: ["$\\frac{a^3\\sqrt{3}}{3}$", "$a^3\\sqrt{3}$", "$\\frac{2a^3\\sqrt{3}}{3}$", "$a^3$"],
+                    correctAnswer: "$\\frac{a^3\\sqrt{3}}{3}$",
+                    blocks: [BLOCK_LIBRARY.plus5, BLOCK_LIBRARY.s4, BLOCK_LIBRARY.pentaT],
+                    hardestBlockIndex: 0
+                },
+                {
+                    question: "Cho tứ diện ABCD. Gọi M, N, P, Q, R, S lần lượt là trung điểm của các cạnh AB, CD, AC, BD, AD, BC. Mệnh đề nào sau đây sai?",
+                    options: ["MN, PQ, RS đồng quy.", "Tứ giác MPNQ là hình bình hành.", "Thể tích khối tứ diện ABCD bằng 4 lần thể tích khối tứ diện MNPQ.", "Tứ diện ABCD là tứ diện đều."],
+                    correctAnswer: "Tứ diện ABCD là tứ diện đều.",
+                    blocks: [BLOCK_LIBRARY.fatL, BLOCK_LIBRARY.longZ, BLOCK_LIBRARY.pentaF],
+                    hardestBlockIndex: 1
+                },
+                {
+                    question: "Cho hình hộp ABCD.A'B'C'D'. Mặt phẳng (A'BD) chia khối hộp thành hai khối đa diện. Tỉ số thể tích của hai khối đa diện đó bằng bao nhiêu?",
+                    options: ["$\\frac{1}{2}$", "$\\frac{1}{3}$", "$\\frac{1}{4}$", "$\\frac{1}{5}$"],
+                    correctAnswer: "$\\frac{1}{5}$",
+                    blocks: [BLOCK_LIBRARY.smallL, BLOCK_LIBRARY.pipe5, BLOCK_LIBRARY.bar3],
+                    hardestBlockIndex: 0
+                },
+                {
+                    question: "Cho hình chóp S.ABCD có đáy là hình thang vuông tại A và B, AB = BC = a, AD = 2a. SA vuông góc với đáy. Khoảng cách từ C đến mặt phẳng (SAD) bằng bao nhiêu?",
+                    options: ["a", "2a", "$\\frac{a\\sqrt{2}}{2}$", "$\\frac{a}{2}$"],
+                    correctAnswer: "a",
+                    blocks: [BLOCK_LIBRARY.bar4, BLOCK_LIBRARY.t5, BLOCK_LIBRARY.l4],
+                    hardestBlockIndex: 2
+                },
+                {
+                    question: "Trong không gian, cho n điểm không đồng phẳng (n ≥ 4). Có thể xác định được bao nhiêu mặt phẳng phân biệt từ các điểm đã cho?",
+                    options: ["$C_n^3$", "$A_n^3$", "n(n-1)(n-2)", "$3^n$"],
+                    correctAnswer: "$C_n^3$",
+                    blocks: [BLOCK_LIBRARY.pentaL, BLOCK_LIBRARY.u5, BLOCK_LIBRARY.cross],
+                    hardestBlockIndex: 1
+                },
+                {
+                    question: "Cho hình chóp S.ABC có đáy là tam giác vuông tại B, AB = a, BC = 2a. SA vuông góc với đáy. Góc giữa hai đường thẳng SB và AC bằng $90^\\circ$. Tính thể tích khối chóp S.ABC.",
+                    options: ["$\\frac{a^3}{3}$", "$\\frac{2a^3}{3}$", "$\\frac{a^3\\sqrt{5}}{3}$", "$\\frac{2a^3}{3}$"],
+                    correctAnswer: "$\\frac{2a^3}{3}$",
+                    blocks: [BLOCK_LIBRARY.l5, BLOCK_LIBRARY.bar5, BLOCK_LIBRARY.pipe4],
+                    hardestBlockIndex: 0
+                },
+                {
+                    question: "Cho tứ diện ABCD có AB = AC = AD và góc BAC = góc CAD = góc DAB = $60^\\circ$. Mệnh đề nào sau đây đúng?",
+                    options: ["Tứ diện ABCD là tứ diện đều.", "Hình chiếu của A lên mặt phẳng (BCD) là tâm đường tròn ngoại tiếp tam giác BCD.", "Thể tích khối tứ diện ABCD bằng $\\frac{a^3\\sqrt{2}}{12}$ với a là độ dài cạnh bên.", "Các cặp cạnh đối diện bằng nhau."],
+                    correctAnswer: "Tứ diện ABCD là tứ diện đều.",
+                    blocks: [BLOCK_LIBRARY.t4, BLOCK_LIBRARY.z4, BLOCK_LIBRARY.sqr2],
+                    hardestBlockIndex: 2
+                },
+                {
+                    question: "Cho hình chóp S.ABCD có đáy là hình vuông cạnh a. Cạnh bên SA vuông góc với đáy. M là trung điểm của BC. Góc giữa hai mặt phẳng (SAM) và (SAD) bằng $30^\\circ$. Tính thể tích khối chóp S.ABCD.",
+                    options: ["$\\frac{a^3\\sqrt{3}}{9}$", "$\\frac{a^3}{3}$", "$\\frac{a^3\\sqrt{6}}{9}$", "$\\frac{a^3\\sqrt{3}}{3}$"],
+                    correctAnswer: "$\\frac{a^3\\sqrt{3}}{9}$",
+                    blocks: [BLOCK_LIBRARY.dot, BLOCK_LIBRARY.l3, BLOCK_LIBRARY.domino2],
+                    hardestBlockIndex: 1
+                },
+                {
+                    question: "Cho lăng trụ ABC.A'B'C' có thể tích V. Gọi M, N, P lần lượt là các điểm trên các cạnh AA', BB', CC' sao cho AM = 2MA', BN = 2NB', CP = 2PC'. Thể tích khối đa diện ABCMNP bằng bao nhiêu?",
+                    options: ["$\\frac{2V}{3}$", "$\\frac{V}{3}$", "$\\frac{V}{2}$", "$\\frac{3V}{4}$"],
+                    correctAnswer: "$\\frac{2V}{3}$",
+                    blocks: [BLOCK_LIBRARY.plus5, BLOCK_LIBRARY.s4, BLOCK_LIBRARY.pentaT],
+                    hardestBlockIndex: 0
+                },
+                {
+                    question: "Trong không gian, cho hai đường thẳng song song a và b. Có bao nhiêu mặt phẳng cách đều a và b?",
+                    options: ["0", "1", "2", "Vô số"],
+                    correctAnswer: "1",
+                    blocks: [BLOCK_LIBRARY.fatL, BLOCK_LIBRARY.longZ, BLOCK_LIBRARY.pentaF],
+                    hardestBlockIndex: 1
+                },
+                {
+                    question: "Cho hình chóp S.ABCD có đáy là hình thang cân, AD // BC, AD = 2a, BC = a, AB = a$\\sqrt{2}$. SA vuông góc với đáy, SA = 3a. Thể tích khối chóp S.ABCD bằng bao nhiêu?",
+                    options: ["$\\frac{3a^3\\sqrt{7}}{2}$", "$\\frac{3a^3\\sqrt{2}}{2}$", "$\\frac{3a^3}{2}$", "$3a^3$"],
+                    correctAnswer: "$\\frac{3a^3\\sqrt{7}}{2}$",
+                    blocks: [BLOCK_LIBRARY.smallL, BLOCK_LIBRARY.pipe5, BLOCK_LIBRARY.bar3],
+                    hardestBlockIndex: 0
+                },
+                {
+                    question: "Cho tứ diện ABCD có các cạnh đối diện bằng nhau. Hình chiếu của A lên mặt phẳng (BCD) là điểm H. Mệnh đề nào sau đây đúng?",
+                    options: ["H là trực tâm của tam giác BCD.", "H là tâm đường tròn ngoại tiếp tam giác BCD.", "H là tâm đường tròn nội tiếp tam giác BCD.", "H là trọng tâm của tam giác BCD."],
+                    correctAnswer: "H là trực tâm của tam giác BCD.",
+                    blocks: [BLOCK_LIBRARY.bar4, BLOCK_LIBRARY.t5, BLOCK_LIBRARY.l4],
+                    hardestBlockIndex: 2
+                },
+                {
+                    question: "Cho hình lập phương ABCD.A'B'C'D' cạnh a. Thể tích khối bát diện đều có các đỉnh là tâm của các mặt của hình lập phương bằng bao nhiêu?",
+                    options: ["$\\frac{a^3}{6}$", "$\\frac{a^3}{3}$", "$\\frac{a^3}{2}$", "$\\frac{2a^3}{3}$"],
+                    correctAnswer: "$\\frac{a^3}{6}$",
+                    blocks: [BLOCK_LIBRARY.pentaL, BLOCK_LIBRARY.u5, BLOCK_LIBRARY.cross],
+                    hardestBlockIndex: 1
+                },
+                {
+                    question: "Cho hình chóp S.ABCD có đáy là hình bình hành. Gọi M là trung điểm của SA. Thiết diện của hình chóp cắt bởi mặt phẳng đi qua M và song song với BD, SC là hình gì?",
+                    options: ["Ngũ giác.", "Tứ giác.", "Tam giác.", "Lục giác."],
+                    correctAnswer: "Lục giác.",
+                    blocks: [BLOCK_LIBRARY.l5, BLOCK_LIBRARY.bar5, BLOCK_LIBRARY.pipe4],
+                    hardestBlockIndex: 0
+                },
+                {
+                    question: "Trong không gian, cho hai mặt phẳng (P) và (Q) cắt nhau. Có bao nhiêu mặt phẳng (R) vuông góc với cả (P) và (Q)?",
+                    options: ["0", "1", "2", "Vô số"],
+                    correctAnswer: "Vô số",
+                    blocks: [BLOCK_LIBRARY.t4, BLOCK_LIBRARY.z4, BLOCK_LIBRARY.sqr2],
+                    hardestBlockIndex: 2
+                },
+                {
+                    question: "Cho hình chóp S.ABCD có đáy là hình vuông cạnh a. Cạnh bên SA vuông góc với đáy, SA = a. Khoảng cách giữa hai đường thẳng AC và SB bằng bao nhiêu?",
+                    options: ["$\\frac{a\\sqrt{3}}{3}$", "a", "$\\frac{a\\sqrt{2}}{2}$", "$\\frac{a}{2}$"],
+                    correctAnswer: "$\\frac{a\\sqrt{3}}{3}$",
+                    blocks: [BLOCK_LIBRARY.dot, BLOCK_LIBRARY.l3, BLOCK_LIBRARY.domino2],
+                    hardestBlockIndex: 1
+                }
+            ];
+
+            const elements = {
+                board: document.getElementById('game-board'),
+                choices: document.getElementById('block-choices'),
+                score: document.getElementById('score-counter'),
+                turn: document.getElementById('turn-counter'),
+                livesContainer: document.getElementById('lives-container'),
+                gameOverScreen: document.getElementById('game-over-screen'),
+                gameOverTitle: document.getElementById('game-over-title'),
+                finalScore: document.getElementById('final-score'),
+                restartButton: document.getElementById('restart-button'),
+                homeButton: document.getElementById('home-button'),
+                questionModal: document.getElementById('question-modal'),
+                questionText: document.getElementById('question-text'),
+                answerOptions: document.getElementById('answer-options'),
+                instructionText: document.getElementById('instruction-text'),
+                nextQuestionButton: document.getElementById('next-question-button'),
+                scorePopupContainer: document.getElementById('score-popup-container'),
+                startScreen: document.getElementById('start-screen'),
+                startGameButton: document.getElementById('start-game-button'),
+                playerNameInput: document.getElementById('player-name-input'),
+                playerNameDisplay: document.getElementById('player-name-display'),
+                highscoreModal: document.getElementById('highscore-modal'),
+                highscoreList: document.getElementById('highscore-list'),
+                viewHighscoreButton: document.getElementById('view-highscore-button'),
+                closeHighscoreButton: document.getElementById('close-highscore-button'),
+            };
+
+            let boardState, score, turn, lives, currentBlocks, currentQuestion, draggedBlock, isAnimating, currentPlayerName;
+            
+            function initGame() {
+                boardState = Array.from({ length: BOARD_SIZE }, () => Array(BOARD_SIZE).fill(null));
+                score = 0; turn = 0; lives = MAX_LIVES;
+                currentBlocks = []; currentQuestion = null;
+                draggedBlock = null; isAnimating = false;
+                elements.gameOverScreen.classList.add('hidden');
+                elements.questionModal.classList.add('hidden');
+                elements.highscoreModal.classList.add('hidden');
+                elements.nextQuestionButton.classList.add('hidden');
+                elements.board.style.pointerEvents = 'auto';
+                
+                elements.instructionText.textContent = "Chào mừng! Hãy bắt đầu trò chơi.";
+                elements.choices.innerHTML = ''; 
+
+                updateInfoPanel();
+                renderBoard();
+                showStartScreen();
+            }
+
+            function showStartScreen() {
+                elements.startScreen.classList.remove('hidden');
+                elements.playerNameDisplay.textContent = '';
+                elements.playerNameInput.value = '';
+            }
+
+            function startGame() {
+                const name = elements.playerNameInput.value.trim();
+                if (name === '') {
+                    alert('Vui lòng nhập tên của bạn!');
+                    return;
+                }
+                currentPlayerName = name;
+                elements.playerNameDisplay.textContent = `Người chơi: ${currentPlayerName}`;
+                elements.startScreen.classList.add('hidden');
+                startTurn();
+            }
+
+            function startTurn() {
+                turn = 1;
+                updateInfoPanel();
+
+                isAnimating = true;
+                elements.board.style.pointerEvents = 'none';
+                elements.choices.innerHTML = '';
+                elements.nextQuestionButton.classList.add('hidden');
+                elements.instructionText.textContent = "Hãy trả lời câu hỏi để nhận khối...";
+                currentQuestion = QA_DATABASE[Math.floor(Math.random() * QA_DATABASE.length)];
+                showQuestionModal(currentQuestion);
+            }
+            
+            function nextTurn() {
+                 isAnimating = true;
+                elements.board.style.pointerEvents = 'none';
+                elements.choices.innerHTML = '';
+                elements.nextQuestionButton.classList.add('hidden');
+                elements.instructionText.textContent = "Hãy trả lời câu hỏi để nhận khối...";
+                currentQuestion = QA_DATABASE[Math.floor(Math.random() * QA_DATABASE.length)];
+                showQuestionModal(currentQuestion);
+            }
+
+            function isGameOver() {
+                if (currentBlocks.length === 0) return true;
+                for (const block of currentBlocks) {
+                    for (let r = 0; r < BOARD_SIZE; r++) {
+                        for (let c = 0; c < BOARD_SIZE; c++) {
+                            if (canPlaceBlock(block.shape, r, c)) return false;
+                        }
+                    }
+                }
+                return true;
+            }
+
+            function endGame(reason = "no_moves") {
+                if (reason === 'no_lives') {
+                    elements.gameOverTitle.textContent = "Bạn Đã Hết Tim!";
+                } else {
+                    elements.gameOverTitle.textContent = "Hết Nước Đi!";
+                }
+                elements.finalScore.textContent = score;
+                updateHighScores(currentPlayerName, score);
+                displayHighScores(); // Chuẩn bị dữ liệu cho modal
+                elements.gameOverScreen.classList.remove('hidden');
+            }
+            
+            function getHighScores() {
+                const scoresJSON = localStorage.getItem('blockBlastHighScores');
+                return scoresJSON ? JSON.parse(scoresJSON) : [];
+            }
+
+            function updateHighScores(name, newScore) {
+                const highScores = getHighScores();
+                highScores.push({ name, score: newScore });
+                highScores.sort((a, b) => b.score - a.score);
+                const topScores = highScores.slice(0, 5);
+                localStorage.setItem('blockBlastHighScores', JSON.stringify(topScores));
+            }
+
+            function displayHighScores() {
+                const highScores = getHighScores();
+                elements.highscoreList.innerHTML = '';
+                if (highScores.length === 0) {
+                    elements.highscoreList.innerHTML = '<li>Chưa có ai chơi. Hãy là người đầu tiên!</li>';
+                    return;
+                }
+                highScores.forEach((scoreItem, index) => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <span class="rank">#${index + 1}</span>
+                        <span class="name">${scoreItem.name}</span>
+                        <span class="score">${scoreItem.score}</span>
+                    `;
+                    elements.highscoreList.appendChild(li);
+                });
+            }
+
+            function showQuestionModal(questionData) {
+                elements.questionText.innerHTML = questionData.question;
+                elements.answerOptions.innerHTML = ''; 
+
+                questionData.options.forEach(option => {
+                    const button = document.createElement('button');
+                    button.className = 'answer-btn';
+                    button.innerHTML = option;
+                    button.onclick = () => handleAnswer(option);
+                    elements.answerOptions.appendChild(button);
+                });
+                
+                if (window.MathJax) {
+                    window.MathJax.typesetPromise([elements.questionModal]).catch(err => console.error('MathJax typeset error:', err));
+                }
+
+                elements.questionModal.classList.remove('hidden');
+            }
+
+            function handleAnswer(selectedAnswer) {
+                elements.questionModal.classList.add('hidden');
+                
+                if (selectedAnswer === currentQuestion.correctAnswer) {
+                    elements.instructionText.textContent = "Đúng rồi! Hãy kéo một khối vào bảng.";
+                    currentBlocks = JSON.parse(JSON.stringify(currentQuestion.blocks));
+                } else {
+                    lives--;
+                    updateInfoPanel();
+
+                    if (lives <= 0) {
+                        elements.instructionText.textContent = "Sai rồi! Bạn đã hết tim.";
+                        setTimeout(() => endGame('no_lives'), 1500);
+                        return;
+                    }
+
+                    elements.instructionText.textContent = "Sai rồi! Bạn phải dùng khối khó nhất.";
+                    const hardestBlock = currentQuestion.blocks[currentQuestion.hardestBlockIndex];
+                    currentBlocks = [JSON.parse(JSON.stringify(hardestBlock))];
+                }
+                
+                renderBlockChoices();
+                isAnimating = false;
+                elements.board.style.pointerEvents = 'auto';
+                
+                if (isGameOver()) {
+                    elements.instructionText.textContent = "Không còn nước đi nào!";
+                    setTimeout(() => endGame('no_moves'), 1500);
+                }
+            }
+            
+            function canPlaceBlock(shape, startRow, startCol) {
+                for (let r = 0; r < shape.length; r++) {
+                    for (let c = 0; c < shape[r].length; c++) {
+                        if (shape[r][c] === 1) {
+                            const boardR = startRow + r;
+                            const boardC = startCol + c;
+                            if (boardR >= BOARD_SIZE || boardC >= BOARD_SIZE || boardState[boardR][boardC] !== null) {
+                                return false;
+                            }
+                        }
+                    }
+                }
+                return true;
+            }
+            
+            function createScorePopup(points) {
+                if (points <= 0) return;
+                const popup = document.createElement('div');
+                popup.textContent = `+${points}`;
+                popup.className = 'score-popup';
+                elements.scorePopupContainer.appendChild(popup);
+                popup.addEventListener('animationend', () => popup.remove());
+            }
+
+            async function placeBlock(block, startRow, startCol) {
+                if (!canPlaceBlock(block.shape, startRow, startCol)) return;
+
+                isAnimating = true;
+                elements.board.style.pointerEvents = 'none';
+                
+                const cellsToAnimate = [];
+                let placedCellsCount = 0;
+                for (let r = 0; r < block.shape.length; r++) {
+                    for (let c = 0; c < block.shape[r].length; c++) {
+                        if (block.shape[r][c] === 1) {
+                            placedCellsCount++;
+                            const boardR = startRow + r;
+                            const boardC = startCol + c;
+                            boardState[boardR][boardC] = block.colorClass;
+                            cellsToAnimate.push({ r: boardR, c: boardC });
+                        }
+                    }
+                }
+
+                score += placedCellsCount;
+                createScorePopup(placedCellsCount);
+                updateInfoPanel();
+
+                cellsToAnimate.forEach((cell, index) => {
+                    const cellEl = elements.board.querySelector(`[data-row='${cell.r}'][data-col='${cell.c}']`);
+                    if (cellEl) {
+                        cellEl.className = 'cell';
+                        setTimeout(() => {
+                            cellEl.classList.add('filled', block.colorClass);
+                            cellEl.style.animationDelay = `${index * 0.05}s`;
+                        }, 10);
+                    }
+                });
+
+                await new Promise(resolve => setTimeout(resolve, cellsToAnimate.length * 50 + 400));
+                
+                await handleLineClears();
+                
+                currentBlocks = [];
+                renderBlockChoices();
+                
+                turn++;
+                updateInfoPanel();
+                elements.instructionText.textContent = "Tốt lắm! Nhấn nút để sang câu tiếp theo.";
+                elements.nextQuestionButton.classList.remove('hidden');
+                isAnimating = false;
+                elements.board.style.pointerEvents = 'auto';
+            }
+
+            async function handleLineClears() {
+                const rowsToClear = [], colsToClear = [];
+                for (let r = 0; r < BOARD_SIZE; r++) if (boardState[r].every(c => c !== null)) rowsToClear.push(r);
+                for (let c = 0; c < BOARD_SIZE; c++) if (boardState.every(r => r[c] !== null)) colsToClear.push(c);
+
+                const linesCount = rowsToClear.length + colsToClear.length;
+                if (linesCount === 0) return;
+                
+                const scorePerLine = 100;
+                const comboBonus = linesCount > 1 ? (linesCount - 1) * 50 : 0;
+                const totalClearScore = linesCount * scorePerLine + comboBonus;
+                
+                score += totalClearScore;
+                createScorePopup(totalClearScore);
+
+                const cellsToClear = new Set();
+                rowsToClear.forEach(r => {
+                    for (let c = 0; c < BOARD_SIZE; c++) cellsToClear.add(`${r}-${c}`);
+                });
+                colsToClear.forEach(c => {
+                    for (let r = 0; r < BOARD_SIZE; r++) cellsToClear.add(`${r}-${c}`);
+                });
+
+                const cellsToFlash = Array.from(cellsToClear).map(id => {
+                    const [r, c] = id.split('-').map(Number);
+                    return {r, c};
+                });
+
+                cellsToFlash.forEach(({r, c}) => elements.board.querySelector(`[data-row='${r}'][data-col='${c}']`)?.classList.add('clearing'));
+                await new Promise(resolve => setTimeout(resolve, ANIMATION_DELAY));
+
+                rowsToClear.forEach(r => { for (let c = 0; c < BOARD_SIZE; c++) boardState[r][c] = null; });
+                colsToClear.forEach(c => { for (let r = 0; r < BOARD_SIZE; r++) boardState[r][c] = null; });
+                
+                updateInfoPanel();
+                renderBoard();
+            }
+
+            function renderBoard() {
+                elements.board.innerHTML = '';
+                for (let r = 0; r < BOARD_SIZE; r++) {
+                    for (let c = 0; c < BOARD_SIZE; c++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'cell';
+                        const colorClass = boardState[r][c];
+                        if (colorClass) {
+                            cell.classList.add('filled', colorClass);
+                            cell.style.animation = 'none';
+                        }
+                        cell.dataset.row = r; cell.dataset.col = c;
+                        elements.board.appendChild(cell);
+                    }
+                }
+                addBoardDragDropListeners();
+            }
+
+            function renderBlockChoices() {
+                elements.choices.innerHTML = '';
+                currentBlocks.forEach((block, index) => {
+                    const choiceEl = document.createElement('div');
+                    choiceEl.className = 'block-choice';
+                    choiceEl.dataset.blockIndex = index;
+                    choiceEl.draggable = true;
+                    
+                    const grid = document.createElement('div');
+                    grid.className = 'block-grid';
+                    grid.style.gridTemplateColumns = `repeat(${block.shape[0].length}, 1fr)`;
+                    
+                    block.shape.forEach(row => row.forEach(val => {
+                        const cell = document.createElement('div');
+                        cell.className = 'block-cell';
+                        if (val === 1) cell.classList.add('filled', block.colorClass);
+                        grid.appendChild(cell);
+                    }));
+                    choiceEl.appendChild(grid);
+                    elements.choices.appendChild(choiceEl);
+                });
+                addChoiceDragListeners();
+            }
+
+            function updateInfoPanel() {
+                elements.score.textContent = score;
+                elements.turn.textContent = turn;
+                elements.livesContainer.innerHTML = '';
+                for (let i = 0; i < MAX_LIVES; i++) {
+                    const heart = document.createElement('span');
+                    heart.textContent = i < lives ? '❤️' : '🖤';
+                    elements.livesContainer.appendChild(heart);
+                }
+            }
+            
+            function showPreview(shape, startRow, startCol) {
+                clearPreview();
+                const isValid = canPlaceBlock(shape, startRow, startCol);
+                
+                for (let r = 0; r < shape.length; r++) {
+                    for (let c = 0; c < shape[r].length; c++) {
+                        if (shape[r][c] === 1) {
+                            const boardR = startRow + r;
+                            const boardC = startCol + c;
+                            const cellEl = elements.board.querySelector(`[data-row='${boardR}'][data-col='${boardC}']`);
+                            if (cellEl) {
+                                cellEl.classList.add(isValid ? 'preview' : 'invalid-preview');
+                            }
+                        }
+                    }
+                }
+            }
+            
+            function clearPreview() {
+                document.querySelectorAll('.cell.preview, .cell.invalid-preview').forEach(c => {
+                    c.classList.remove('preview', 'invalid-preview');
+                });
+            }
+
+            function addChoiceDragListeners() {
+                document.querySelectorAll('.block-choice').forEach(choice => {
+                    choice.addEventListener('dragstart', e => {
+                        if (isAnimating) { e.preventDefault(); return; }
+                        
+                        const draggedElement = e.currentTarget; 
+                        const blockIndex = parseInt(draggedElement.dataset.blockIndex);
+                        draggedBlock = { ...currentBlocks[blockIndex], index: blockIndex };
+                        e.dataTransfer.setData('text/plain', blockIndex);
+
+                        const blockGrid = draggedElement.querySelector('.block-grid');
+                        if (blockGrid) {
+                            const clone = blockGrid.cloneNode(true);
+                            
+                            const boardCellEl = elements.board.querySelector('.cell');
+                            if (boardCellEl) {
+                                const boardCellSize = boardCellEl.offsetWidth;
+                                const boardGap = getComputedStyle(elements.board).gap;
+                                clone.style.gap = boardGap;
+                                clone.querySelectorAll('.block-cell').forEach(cell => {
+                                    cell.style.width = `${boardCellSize}px`;
+                                    cell.style.height = `${boardCellSize}px`;
+                                });
+                            }
+
+                            clone.style.position = 'absolute';
+                            clone.style.top = '-1000px';
+                            document.body.appendChild(clone);
+                            
+                            e.dataTransfer.setDragImage(clone, 0, 0);
+
+                            setTimeout(() => { if (clone.parentNode) { clone.parentNode.removeChild(clone); } }, 0);
+                        }
+                        
+                        setTimeout(() => draggedElement.classList.add('dragging'), 0); 
+                    });
+                    choice.addEventListener('dragend', e => {
+                        e.currentTarget.classList.remove('dragging');
+                        draggedBlock = null;
+                        clearPreview();
+                    });
+                });
+            }
+
+            function addBoardDragDropListeners() {
+                elements.board.querySelectorAll('.cell').forEach(cell => {
+                    cell.addEventListener('dragover', e => {
+                        e.preventDefault();
+                        if (!draggedBlock) return;
+                        showPreview(draggedBlock.shape, parseInt(e.currentTarget.dataset.row), parseInt(e.currentTarget.dataset.col));
+                    });
+                    cell.addEventListener('dragleave', clearPreview);
+                    cell.addEventListener('drop', e => {
+                        e.preventDefault();
+                        if (!draggedBlock || isAnimating) return;
+                        clearPreview();
+                        placeBlock(draggedBlock, parseInt(e.currentTarget.dataset.row), parseInt(e.currentTarget.dataset.col));
+                        draggedBlock = null;
+                    });
+                });
+            }
+            
+            // --- Event Listeners ---
+            elements.startGameButton.addEventListener('click', startGame);
+            elements.restartButton.addEventListener('click', initGame);
+            elements.nextQuestionButton.addEventListener('click', nextTurn);
+            
+            elements.viewHighscoreButton.addEventListener('click', () => {
+                elements.highscoreModal.classList.remove('hidden');
+            });
+            
+            elements.closeHighscoreButton.addEventListener('click', () => {
+                elements.highscoreModal.classList.add('hidden');
+            });
+
+            elements.homeButton.addEventListener('click', () => {
+                window.location.href = '1.html#game-selection-screen';
+            });
+            
+            elements.playerNameInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    startGame();
+                }
+            });
+
+            // --- Initialise Game ---
+            initGame();
+        });
+    </script>
+</body>
+</html>

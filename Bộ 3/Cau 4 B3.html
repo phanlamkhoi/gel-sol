@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Pyramid S.ABCD Visualization (Fixed)</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            flex-direction: column;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: calc(100vh - 60px); /* Adjust height to make space for buttons */
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+        .controls {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%); /* Centering the controls container */
+            display: flex;
+            gap: 15px;
+            z-index: 10;
+        }
+        .control-button {
+            padding: 12px 25px;
+            font-size: 16px;
+            font-weight: 600;
+            color: #fff;
+            background: linear-gradient(145deg, #007bff, #0056b3);
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
+            transition: all 0.3s ease;
+            outline: none;
+            transform: translateY(0);
+        }
+        .control-button:hover {
+            background: linear-gradient(145deg, #0056b3, #003a80);
+            box-shadow: 0 6px 20px rgba(0, 123, 255, 0.4);
+            transform: translateY(-2px);
+        }
+        .control-button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 5px rgba(0, 123, 255, 0.2);
+        }
+
+        .label {
+            position: absolute;
+            background-color: rgba(255, 255, 255, 0.7); /* Nền mờ */
+            padding: 2px 8px; /* Thêm đệm */
+            border-radius: 12px; /* Bo góc */
+            font-size: 16px; /* Tăng kích thước chữ */
+            color: #000000; /* Chữ màu đen */
+            font-weight: bold; /* In đậm */
+            text-shadow: 0 0 3px rgba(255,255,255,0.9); /* Bóng chữ để dễ đọc */
+            pointer-events: none;
+            white-space: nowrap;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* Thêm bóng nhẹ */
+            border: none;
+            backdrop-filter: blur(2px); /* Hiệu ứng làm mờ nền (tùy chọn) */
+        }
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5em;
+            color: #555;
+            z-index: 1000;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+    <div class="loading-overlay" id="loadingOverlay">Đang tải mô hình 3D...</div>
+
+    <script>
+        // Global variables for scene elements
+        let scene, camera, renderer, controls;
+        let labels = {}; // Object to store label elements and their positions
+        let initialCameraConfig = {}; // To store initial camera position and target for reset
+
+        // Define 'a' as a scaling factor for coordinates
+        const a_value = 10;
+
+        // --- TỌA ĐỘ MỚI: ĐÁY NẰM TRÊN MẶT PHẲNG XZ, S HƯỚNG LÊN TRÊN (TRỤC Y) ---
+        const half_a = a_value / 2;
+        const height = (Math.sqrt(3) / 2) * a_value;
+
+        const A = new THREE.Vector3(-half_a, 0, half_a);
+        const B = new THREE.Vector3(half_a, 0, half_a);
+        const C = new THREE.Vector3(half_a, 0, -half_a);
+        const D = new THREE.Vector3(-half_a, 0, -half_a);
+        const S = new THREE.Vector3(0, height, 0);
+
+        // Calculate J as the midpoint of SD
+        const J = new THREE.Vector3( (S.x + D.x) / 2, (S.y + D.y) / 2, (S.z + D.z) / 2 );
+
+        // --- Materials ---
+        const pyramidMaterial = new THREE.MeshPhongMaterial({ color: 0xFFFFFF, side: THREE.DoubleSide, opacity: 1.0, transparent: false });
+        const baseMaterial = new THREE.MeshPhongMaterial({ color: 0xFFFFFF, side: THREE.DoubleSide, opacity: 1.0, transparent: false });
+        const pointMaterial = new THREE.MeshBasicMaterial({ color: 0xaaaaaa });
+        
+        // *** LỖI ĐÃ SỬA: Xóa 'renderOrder' khỏi định nghĩa vật liệu ***
+        const hiddenDashedLineMaterial = new THREE.LineDashedMaterial({ color: 0x444444, linewidth: 5, dashSize: 1, gapSize: 1, depthTest: true, depthWrite: false, depthFunc: THREE.GreaterEqualDepth, transparent: true });
+        const visibleSolidLineMaterial = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 7, depthTest: true, depthWrite: true, depthFunc: THREE.LessEqualDepth });
+        const visibleBoldBlackLineMaterial = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 15, depthTest: true, depthWrite: true, depthFunc: THREE.LessEqualDepth });
+        const intersectionLineMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 10, depthTest: false });
+
+        function addLabel(position, text) {
+            const element = document.createElement('div');
+            element.className = 'label';
+            element.textContent = text;
+            document.body.appendChild(element);
+            labels[text] = { element: element, position: position };
+        }
+
+        function createPointSphere(position, labelText) {
+            const geometry = new THREE.SphereGeometry(0.35, 16, 16);
+            const sphere = new THREE.Mesh(geometry, pointMaterial);
+            sphere.position.copy(position);
+            scene.add(sphere);
+            addLabel(position, labelText);
+        }
+
+        // *** LỖI ĐÃ SỬA: Thêm 'renderOrder' vào đúng đối tượng Line ***
+        function addEdge(v1, v2, material, isHiddenVisibleLine = false, customVisibleMaterial = null) {
+            const points = [v1, v2];
+            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+            
+            if (isHiddenVisibleLine) {
+                const dashedLine = new THREE.Line(geometry, hiddenDashedLineMaterial);
+                dashedLine.computeLineDistances();
+                dashedLine.renderOrder = 1; // Đặt renderOrder cho đối tượng
+                scene.add(dashedLine);
+
+                const solidMaterial = customVisibleMaterial || visibleSolidLineMaterial;
+                const solidLine = new THREE.Line(geometry, solidMaterial);
+                solidLine.renderOrder = 2; // Đặt renderOrder cho đối tượng
+                scene.add(solidLine);
+            } else {
+                const line = new THREE.Line(geometry, material);
+                if (material.isLineDashedMaterial) { 
+                    line.computeLineDistances();
+                }
+                // Dành riêng cho đường giao tuyến màu đỏ để nó luôn nổi lên trên
+                if (material === intersectionLineMaterial) {
+                    line.renderOrder = 3;
+                }
+                scene.add(line);
+            }
+        }
+
+        function fitCameraToScene() {
+            const boundingBox = new THREE.Box3().setFromObject(scene);
+            const center = new THREE.Vector3();
+            boundingBox.getCenter(center);
+            const size = new THREE.Vector3();
+            boundingBox.getSize(size);
+
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const fov = camera.fov * (Math.PI / 180);
+            let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
+            cameraZ *= 2.0; 
+
+            initialCameraConfig = {
+                position: new THREE.Vector3(center.x + cameraZ * 0.8, center.y + cameraZ * 0.6, center.z + cameraZ * 0.8),
+                target: center.clone(),
+                maxDistance: cameraZ * 3,
+                minDistance: maxDim / 10,
+                far: cameraZ * 4
+            };
+
+            camera.position.copy(initialCameraConfig.position);
+            camera.far = initialCameraConfig.far;
+            
+            camera.lookAt(initialCameraConfig.target);
+            Object.assign(controls, { target: initialCameraConfig.target, maxDistance: initialCameraConfig.maxDistance, minDistance: initialCameraConfig.minDistance });
+            
+            camera.updateProjectionMatrix();
+            controls.update();
+        }
+
+        function resetCameraSize() {
+            if (initialCameraConfig.position) {
+                camera.position.copy(initialCameraConfig.position);
+                camera.lookAt(initialCameraConfig.target);
+                controls.target.copy(initialCameraConfig.target);
+                Object.assign(controls, { maxDistance: initialCameraConfig.maxDistance, minDistance: initialCameraConfig.minDistance });
+                camera.far = initialCameraConfig.far;
+                camera.updateProjectionMatrix();
+                controls.update();
+            }
+        }
+
+        function updateLabels() {
+            for (const key in labels) {
+                const label = labels[key];
+                const vector = label.position.clone().project(camera);
+                label.element.style.left = `${(vector.x * .5 + .5) * window.innerWidth}px`;
+                label.element.style.top = `${(-vector.y * .5 + .5) * window.innerHeight}px`;
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            updateLabels();
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            updateLabels();
+        });
+
+        window.onload = function() {
+            document.getElementById('loadingOverlay').style.display = 'none';
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xFFFFFF);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 5000);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+
+            const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.5);
+            scene.add(hemisphereLight);
+            const directionalLight1 = new THREE.DirectionalLight(0xffffff, 2.0);
+            directionalLight1.position.set(1, 1, 1);
+            scene.add(directionalLight1);
+            const directionalLight2 = new THREE.DirectionalLight(0xffffff, 1.5);
+            directionalLight2.position.set(-1, -1, -1);
+            scene.add(directionalLight2);
+
+            createPointSphere(A, 'A');
+            createPointSphere(B, 'B');
+            createPointSphere(C, 'C');
+            createPointSphere(D, 'D');
+            createPointSphere(S, 'S');
+            createPointSphere(J, 'J');
+
+            const baseGeometry = new THREE.BufferGeometry();
+            baseGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array([A.x, A.y, A.z, B.x, B.y, B.z, C.x, C.y, C.z, D.x, D.y, D.z]), 3));
+            baseGeometry.setIndex([0, 1, 2, 0, 2, 3]);
+            baseGeometry.computeVertexNormals();
+            const baseMesh = new THREE.Mesh(baseGeometry, baseMaterial);
+            baseMesh.renderOrder = 0;
+            scene.add(baseMesh);
+
+            const pyramidFacesGeometry = new THREE.BufferGeometry();
+            pyramidFacesGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array([S.x,S.y,S.z,A.x,A.y,A.z,B.x,B.y,B.z, S.x,S.y,S.z,B.x,B.y,B.z,C.x,C.y,C.z, S.x,S.y,S.z,C.x,C.y,C.z,D.x,D.y,D.z, S.x,S.y,S.z,D.x,D.y,D.z,A.x,A.y,A.z]), 3));
+            pyramidFacesGeometry.setIndex([0,1,2, 3,4,5, 6,7,8, 9,10,11]);
+            pyramidFacesGeometry.computeVertexNormals();
+            const pyramidFacesMesh = new THREE.Mesh(pyramidFacesGeometry, pyramidMaterial);
+            pyramidFacesMesh.renderOrder = 0;
+            scene.add(pyramidFacesMesh);
+
+            addEdge(A, B, null, true);
+            addEdge(B, C, null, true);
+            addEdge(C, D, null, true);
+            addEdge(D, A, null, true);
+            addEdge(S, A, null, true, visibleBoldBlackLineMaterial); 
+            addEdge(S, B, null, true, visibleBoldBlackLineMaterial);
+            addEdge(S, C, null, true, visibleBoldBlackLineMaterial);
+            addEdge(S, D, null, true, visibleBoldBlackLineMaterial);
+            addEdge(S, J, null, true);
+            addEdge(D, J, null, true);
+            addEdge(C, J, null, true);
+
+            const directionAB = new THREE.Vector3().subVectors(B, A);
+            const P1 = new THREE.Vector3().copy(S).addScaledVector(directionAB, -0.75);
+            const P2 = new THREE.Vector3().copy(S).addScaledVector(directionAB, 0.75);
+            addEdge(P1, P2, intersectionLineMaterial, false);
+            const d_label_pos = new THREE.Vector3().copy(S).addScaledVector(directionAB, 0.85);
+            addLabel(d_label_pos, 'd');
+            
+            fitCameraToScene();
+
+            const controlsDiv = document.createElement('div');
+            controlsDiv.className = 'controls';
+            document.body.appendChild(controlsDiv);
+            const resetAllButton = document.createElement('button');
+            resetAllButton.className = 'control-button';
+            resetAllButton.textContent = 'Đặt lại Toàn bộ';
+            resetAllButton.onclick = resetCameraSize;
+            controlsDiv.appendChild(resetAllButton);
+
+            animate();
+        };
+    </script>
+</body>
+</html>

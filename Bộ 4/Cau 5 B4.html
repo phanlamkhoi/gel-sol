@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mô hình 3D: AH ⊥ (SBC)</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Inter', sans-serif; background-color: #f0f0f0; }
+        canvas { display: block; width: 100%; height: 100vh; }
+        .label {
+            position: absolute;
+            font-size: 16px;
+            color: #000000;
+            font-weight: bold;
+            background-color: rgba(255, 255, 255, 0.75);
+            padding: 2px 6px;
+            border-radius: 5px;
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            white-space: nowrap;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+    <script>
+        let scene, camera, renderer, controls;
+        let labels = {};
+
+        // --- 1. Define Coordinates ---
+        // Let A be origin (0,0,0)
+        const A = new THREE.Vector3(0, 0, 0);
+        // Base is a rectangle for simplicity (AB on x-axis, AD on y-axis)
+        const AB_len = 8;
+        const AD_len = 6;
+        const SA_height = 10;
+
+        const B = new THREE.Vector3(AB_len, 0, 0);
+        const D = new THREE.Vector3(0, AD_len, 0);
+        const C = new THREE.Vector3(AB_len, AD_len, 0);
+        const S = new THREE.Vector3(0, 0, SA_height); // SA perpendicular to (ABCD)
+
+        // Calculate H, projection of A onto SB
+        // Line SB: P(t) = S + t(B-S)
+        // A is origin (0,0,0)
+        // Vector SB = (AB_len, 0, -SA_height)
+        // H = S + t * (B-S)
+        // AH . SB = 0
+        // (S + t(B-S) - A) . (B-S) = 0
+        // (S + t(B-S)) . (B-S) = 0
+        // S.B - S.S + t(B-S).(B-S) = 0
+        // S.B - S.S + t |B-S|^2 = 0
+        // t = (S.S - S.B) / |B-S|^2
+        const SB_vec = new THREE.Vector3().subVectors(B, S);
+        const t = -S.dot(SB_vec) / SB_vec.lengthSq();
+        const H = new THREE.Vector3().addVectors(S, SB_vec.multiplyScalar(t));
+
+
+        // --- 2. Materials ---
+        const pointMaterial = new THREE.MeshBasicMaterial({ color: 0x333333 });
+        const occlusionMaterial = new THREE.MeshPhongMaterial({ color: 0xFFFFFF, side: THREE.DoubleSide, colorWrite: false, depthWrite: true });
+        const planeSBCMaterial = new THREE.MeshPhongMaterial({ color: 0x4169E1, side: THREE.DoubleSide, opacity: 0.3, transparent: true }); // Blue plane
+        const hiddenDashedLineMaterial = new THREE.LineDashedMaterial({ color: 0x444444, linewidth: 5, dashSize: 1, gapSize: 1, depthWrite: false, depthFunc: THREE.GreaterEqualDepth });
+        
+        const visibleSolidLineMaterial = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 7, depthFunc: THREE.LessEqualDepth });
+        const visibleRedBoldLineMaterial = new THREE.LineBasicMaterial({ color: 0xFF0000, linewidth: 15, depthFunc: THREE.LessEqualDepth }); // Red bold for AH
+
+        // --- Helper Functions ---
+        function addLabel(position, text) {
+            const element = document.createElement('div');
+            element.className = 'label';
+            element.textContent = text;
+            document.body.appendChild(element);
+            labels[text] = { element: element, position: position };
+        }
+
+        function createPointSphere(position, labelText) {
+            const geometry = new THREE.SphereGeometry(0.3, 16, 16);
+            const sphere = new THREE.Mesh(geometry, pointMaterial);
+            sphere.position.copy(position);
+            scene.add(sphere);
+            addLabel(position, labelText);
+        }
+
+        function addEdge(v1, v2, material) {
+            const points = [v1, v2];
+            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+            const dashedLine = new THREE.Line(geometry, hiddenDashedLineMaterial);
+            dashedLine.computeLineDistances();
+            dashedLine.renderOrder = 2;
+            scene.add(dashedLine);
+            const solidLine = new THREE.Line(geometry, material);
+            solidLine.renderOrder = 3;
+            scene.add(solidLine);
+        }
+        
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xffffff);
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(15, 12, 25);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.target.set(AB_len/2, AD_len/2, SA_height/2);
+            scene.add(new THREE.AmbientLight(0xcccccc));
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(5, 10, 7.5);
+            scene.add(directionalLight);
+
+            // --- Occlusion Geometry ---
+            const facesGeometry = new THREE.BufferGeometry();
+            const vertices = new Float32Array([
+                // Base (2 triangles)
+                A.x, A.y, A.z,   B.x, B.y, B.z,   C.x, C.y, C.z,
+                A.x, A.y, A.z,   C.x, C.y, C.z,   D.x, D.y, D.z,
+                // Lateral faces
+                S.x, S.y, S.z,   A.x, A.y, A.z,   B.x, B.y, B.z,
+                S.x, S.y, S.z,   B.x, B.y, B.z,   C.x, C.y, C.z,
+                S.x, S.y, S.z,   C.x, C.y, C.z,   D.x, D.y, D.z,
+                S.x, S.y, S.z,   D.x, D.y, D.z,   A.x, A.y, A.z
+            ]);
+            facesGeometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+            facesGeometry.computeVertexNormals();
+            const occlusionMesh = new THREE.Mesh(facesGeometry, occlusionMaterial);
+            occlusionMesh.renderOrder = 0;
+            scene.add(occlusionMesh);
+
+            // --- Highlighted Plane (SBC) ---
+            const sbcPlaneGeom = new THREE.BufferGeometry();
+            const sbcVertices = new Float32Array([S.x, S.y, S.z, B.x, B.y, B.z, C.x, C.y, C.z]);
+            sbcPlaneGeom.setAttribute('position', new THREE.BufferAttribute(sbcVertices, 3));
+            sbcPlaneGeom.computeVertexNormals();
+            const sbcMesh = new THREE.Mesh(sbcPlaneGeom, planeSBCMaterial);
+            sbcMesh.renderOrder = 1;
+            scene.add(sbcMesh);
+            
+            // --- Visible Geometry ---
+            createPointSphere(S, 'S');
+            createPointSphere(A, 'A');
+            createPointSphere(B, 'B');
+            createPointSphere(C, 'C');
+            createPointSphere(D, 'D');
+            createPointSphere(H, 'H');
+
+            // Line AH (red bold)
+            addEdge(A, H, visibleRedBoldLineMaterial);
+            
+            // Pyramid edges
+            addEdge(S, A, visibleSolidLineMaterial);
+            addEdge(S, B, visibleSolidLineMaterial);
+            addEdge(S, C, visibleSolidLineMaterial);
+            addEdge(S, D, visibleSolidLineMaterial);
+            addEdge(A, B, visibleSolidLineMaterial);
+            addEdge(B, C, visibleSolidLineMaterial);
+            addEdge(C, D, visibleSolidLineMaterial);
+            addEdge(D, A, visibleSolidLineMaterial);
+            addEdge(A, H, visibleSolidLineMaterial); // for rendering AH as part of the overall lines
+        }
+
+        function updateLabels() {
+            for (const key in labels) {
+                const label = labels[key];
+                const vector = label.position.clone().project(camera);
+                const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+                const y = (-vector.y * 0.5 + 0.5) * window.innerHeight;
+                label.element.style.left = `${x}px`;
+                label.element.style.top = `${y}px`;
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            updateLabels();
+            renderer.render(scene, camera);
+        }
+        
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        init();
+        animate();
+        window.addEventListener('resize', onWindowResize);
+    </script>
+</body>
+</html>
